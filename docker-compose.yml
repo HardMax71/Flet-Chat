@@ -1,0 +1,42 @@
+services:
+  db:
+    image: postgres:${POSTGRES_VERSION}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=postgres
+    ports:
+      - "${DB_PORT}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  db_service:
+    build:
+      context: ./db_service
+      args:
+        PYTHON_VERSION: ${PYTHON_VERSION}
+    volumes:
+      - ./db_service:/app
+      - ./db_service/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "${APP_PORT}:${APP_PORT}"
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db:${DB_PORT}/${DB_NAME}
+      - SECRET_KEY=${SECRET_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "
+      until pg_isready -h db -p 5432 -U postgres; do echo 'Waiting for database...'; sleep 2; done;
+      PGPASSWORD=password psql -U postgres -h db -f /docker-entrypoint-initdb.d/init.sql;
+      uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      "
+
+volumes:
+  postgres_data:
