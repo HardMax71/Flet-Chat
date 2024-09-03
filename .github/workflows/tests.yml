@@ -28,7 +28,7 @@ jobs:
       env:
         SECRET_KEY: test_secret_key
       run: |
-        pytest --cov=app --cov-report=xml app/tests
+        pytest --cov=app --cov-report=xml db_service/app/tests
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
