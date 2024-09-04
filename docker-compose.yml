@@ -28,6 +28,7 @@ services:
     environment:
       - DATABASE_URL=postgresql://postgres:password@db:${DB_PORT}/${DB_NAME}
       - SECRET_KEY=${SECRET_KEY}
+      - REFRESH_SECRET_KEY=${REFRESH_SECRET_KEY}
     depends_on:
       db:
         condition: service_healthy

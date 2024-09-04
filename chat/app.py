@@ -14,7 +14,6 @@ class ChatApp:
         self.page = page
         self.page.title = "Chat App"
         self.page.theme_mode = ft.ThemeMode.LIGHT
-        self.page.window_resizable = False
 
         api_part: str = os.environ.get("API_V1_STR", "/api/v1")
         self.api_client = ApiClient("http://localhost:8000/" + api_part)

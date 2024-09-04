@@ -84,10 +84,49 @@ class Message(MessageBase):
         from_attributes = True
 
 
-class Token(BaseModel):
+class TokenBase(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str
+
+
+class TokenCreate(TokenBase):
+    expires_at: datetime
+    user_id: int
+
+
+class TokenUpdate(BaseModel):
+    access_token: Optional[str] = None
+    refresh_token: Optional[str] = None
+    expires_at: Optional[datetime] = None
+
+
+class Token(TokenBase):
+    id: int
+    expires_at: datetime
+    user_id: int
+
+    class Config:
+        from_attributes = True
 
 
 class TokenData(BaseModel):
     username: Optional[str] = None
+    exp: Optional[int] = None
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str
+    expires_at: datetime
+    user_id: int
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str

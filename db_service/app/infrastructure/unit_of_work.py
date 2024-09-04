@@ -1,7 +1,8 @@
-
 # app/infrastructure/unit_of_work.py
+from app.infrastructure.repositories import (SQLAlchemyUserRepository, SQLAlchemyChatRepository,
+                                             SQLAlchemyMessageRepository, SQLAlchemyTokenRepository)
 from sqlalchemy.orm import Session
-from app.infrastructure.repositories import SQLAlchemyUserRepository, SQLAlchemyChatRepository, SQLAlchemyMessageRepository
+
 
 class UnitOfWork:
     def __init__(self, session: Session):
@@ -9,6 +10,7 @@ class UnitOfWork:
         self.users = SQLAlchemyUserRepository(self.session)
         self.chats = SQLAlchemyChatRepository(self.session)
         self.messages = SQLAlchemyMessageRepository(self.session)
+        self.tokens = SQLAlchemyTokenRepository(self.session)
 
     async def __aenter__(self):
         return self

@@ -2,7 +2,7 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from app.domain import schemas
+from app.domain import schemas, models
 
 
 class AbstractUserRepository(ABC):
@@ -91,4 +91,22 @@ class AbstractMessageRepository(ABC):
 
     @abstractmethod
     async def delete(self, message_id: int, user_id: int) -> bool:
+        pass
+
+
+class AbstractTokenRepository(ABC):
+    @abstractmethod
+    async def create(self, token: schemas.TokenCreate) -> models.Token:
+        pass
+
+    @abstractmethod
+    async def get_by_refresh_token(self, refresh_token: str) -> Optional[models.Token]:
+        pass
+
+    @abstractmethod
+    async def update(self, token: models.Token) -> models.Token:
+        pass
+
+    @abstractmethod
+    async def delete(self, token_id: int) -> bool:
         pass

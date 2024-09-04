@@ -1,8 +1,11 @@
 # app/infrastructure/repositories.py
+from typing import Optional
+
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, func
 from app.domain import models, schemas
-from app.domain.interfaces import AbstractUserRepository, AbstractChatRepository, AbstractMessageRepository
+from app.domain.interfaces import (AbstractUserRepository, AbstractChatRepository,
+                                   AbstractMessageRepository, AbstractTokenRepository)
 from app.infrastructure.security import get_password_hash
 
 class SQLAlchemyUserRepository(AbstractUserRepository):
@@ -205,5 +208,32 @@ class SQLAlchemyMessageRepository(AbstractMessageRepository):
 
         db_message.is_deleted = True
         db_message.content = "<This message has been deleted>"
+        self.session.flush()
+        return True
+
+
+class SQLAlchemyTokenRepository(AbstractTokenRepository):
+    def __init__(self, session: Session):
+        self.session = session
+
+    async def create(self, token: schemas.TokenCreate) -> models.Token:
+        db_token = models.Token(**token.model_dump())
+        self.session.add(db_token)
+        self.session.flush()
+        return db_token
+
+    async def get_by_refresh_token(self, refresh_token: str) -> Optional[models.Token]:
+        return self.session.query(models.Token).filter(models.Token.refresh_token == refresh_token).first()
+
+    async def update(self, token: models.Token) -> models.Token:
+        self.session.add(token)
+        self.session.flush()
+        return token
+
+    async def delete(self, token_id: int) -> bool:
+        db_token = self.session.query(models.Token).filter(models.Token.id == token_id).first()
+        if not db_token:
+            return False
+        self.session.delete(db_token)
         self.session.flush()
         return True

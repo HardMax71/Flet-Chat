@@ -24,7 +24,7 @@ class User(Base):
 
     chats = relationship("Chat", secondary=chat_members, back_populates="members")
     messages = relationship("Message", back_populates="user")
-
+    tokens = relationship("Token", back_populates="user")
 
 class Chat(Base):
     __tablename__ = "chats"
@@ -50,3 +50,16 @@ class Message(Base):
 
     chat = relationship("Chat", back_populates="messages")
     user = relationship("User", back_populates="messages")
+
+
+class Token(Base):
+    __tablename__ = "tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    access_token = Column(String, unique=True, index=True)
+    refresh_token = Column(String, unique=True, index=True)
+    token_type = Column(String)
+    expires_at = Column(DateTime(timezone=True))
+    user_id = Column(Integer, ForeignKey("users.id"))
+
+    user = relationship("User", back_populates="tokens")

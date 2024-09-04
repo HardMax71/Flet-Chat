@@ -4,7 +4,8 @@ from datetime import timedelta
 from app.api.dependencies import get_uow
 from app.config import settings
 from app.domain import schemas
-from app.infrastructure.security import verify_password, create_access_token
+from app.infrastructure.security import (verify_password, create_access_token,
+                                         create_refresh_token, decode_token)
 from app.infrastructure.unit_of_work import UnitOfWork
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -12,7 +13,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 router = APIRouter()
 
 
-@router.post("/auth/login", response_model=schemas.Token)
+@router.post("/auth/login", response_model=schemas.TokenResponse)
 async def login_for_access_token(
         form_data: OAuth2PasswordRequestForm = Depends(),
         uow: UnitOfWork = Depends(get_uow)
@@ -26,11 +27,28 @@ async def login_for_access_token(
                 headers={"WWW-Authenticate": "Bearer"},
             )
         access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-        access_token = create_access_token(
+        access_token, access_expire = create_access_token(
             data={"sub": user.username}, expires_delta=access_token_expires
         )
-        return {"access_token": access_token, "token_type": "bearer"}
+        refresh_token, refresh_expire = create_refresh_token(data={"sub": user.username})
 
+        # Save tokens to database
+        token = schemas.TokenCreate(
+            access_token=access_token,
+            refresh_token=refresh_token,
+            token_type="bearer",
+            expires_at=access_expire,
+            user_id=user.id
+        )
+        await uow.tokens.create(token)
+
+        return schemas.TokenResponse(
+            access_token=access_token,
+            refresh_token=refresh_token,
+            token_type="bearer",
+            expires_at=access_expire,
+            user_id=user.id
+        )
 
 @router.post("/auth/register", response_model=schemas.User)
 async def register_user(user: schemas.UserCreate, uow: UnitOfWork = Depends(get_uow)):
@@ -39,3 +57,35 @@ async def register_user(user: schemas.UserCreate, uow: UnitOfWork = Depends(get_
         if db_user:
             raise HTTPException(status_code=400, detail="Username already registered")
         return await uow.users.create(user)
+
+
+@router.post("/auth/refresh", response_model=schemas.Token)
+async def refresh_token(refresh_token: str, uow: UnitOfWork = Depends(get_uow)):
+    async with uow:
+        token = await uow.tokens.get_by_refresh_token(refresh_token)
+        if not token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid refresh token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        username = decode_token(refresh_token)
+        if not username:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid refresh token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        new_access_token, new_access_expire = create_access_token(
+            data={"sub": username}, expires_delta=access_token_expires
+        )
+
+        # Update token in database
+        token.access_token = new_access_token
+        token.expires_at = new_access_expire
+        await uow.tokens.update(token)
+
+        return {"access_token": new_access_token, "refresh_token": refresh_token, "token_type": "bearer"}
