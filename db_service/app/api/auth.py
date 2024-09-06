@@ -50,6 +50,7 @@ async def login_for_access_token(
             user_id=user.id
         )
 
+
 @router.post("/auth/register", response_model=schemas.User)
 async def register_user(user: schemas.UserCreate, uow: UnitOfWork = Depends(get_uow)):
     async with uow:
@@ -89,3 +90,55 @@ async def refresh_token(refresh_token: str, uow: UnitOfWork = Depends(get_uow)):
         await uow.tokens.update(token)
 
         return {"access_token": new_access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+
+
+@router.post("/auth/refresh", response_model=schemas.TokenResponse)
+async def refresh_token(
+        refresh_token_request: schemas.RefreshTokenRequest,
+        uow: UnitOfWork = Depends(get_uow)
+):
+    async with uow:
+        token = await uow.tokens.get_by_refresh_token(refresh_token_request.refresh_token)
+        if not token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid refresh token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        username = decode_token(token.refresh_token)
+        if not username:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid refresh token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        user = await uow.users.get_by_username(username)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        new_access_token, new_access_token_expires = create_access_token(
+            data={"sub": user.username},
+            expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        )
+        new_refresh_token, new_refresh_token_expires = create_refresh_token(
+            data={"sub": user.username}
+        )
+
+        token.access_token = new_access_token
+        token.refresh_token = new_refresh_token
+        token.expires_at = new_access_token_expires
+        await uow.tokens.update(token)
+
+        return schemas.TokenResponse(
+            access_token=new_access_token,
+            refresh_token=new_refresh_token,
+            token_type="bearer",
+            expires_at=new_access_token_expires,
+            user_id=user.id
+        )
