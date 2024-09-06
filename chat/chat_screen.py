@@ -32,16 +32,7 @@ class ChatScreen(ft.UserControl):
                             expand=True,
                             alignment=ft.alignment.center
                         ),
-                        ft.IconButton(
-                            icon=ft.icons.PERSON_ADD,
-                            on_click=self.show_add_member_dialog,
-                            tooltip="Add Member"
-                        ),
-                        ft.IconButton(
-                            icon=ft.icons.PERSON_REMOVE,
-                            on_click=self.show_remove_member_dialog,
-                            tooltip="Remove Member"
-                        ),
+                        self.create_options_menu(),
                     ],
                     alignment=ft.MainAxisAlignment.SPACE_BETWEEN
                 ),
@@ -56,6 +47,24 @@ class ChatScreen(ft.UserControl):
             ],
             expand=True,
             spacing=20,
+        )
+
+    def create_options_menu(self):
+        return ft.PopupMenuButton(
+            icon=ft.icons.MORE_VERT,
+            tooltip="Chat Options",
+            items=[
+                ft.PopupMenuItem(
+                    text="Add Member",
+                    icon=ft.icons.PERSON_ADD,
+                    on_click=self.show_add_member_dialog
+                ),
+                ft.PopupMenuItem(
+                    text="Remove Member",
+                    icon=ft.icons.PERSON_REMOVE,
+                    on_click=self.show_remove_member_dialog
+                ),
+            ],
         )
 
     def show_add_member_dialog(self, e):
@@ -224,17 +233,6 @@ class ChatScreen(ft.UserControl):
                                                   style=ft.TextThemeStyle.BODY_MEDIUM,
                                                   color=text_color)
 
-                    edit_button = ft.IconButton(
-                        icon=ft.icons.EDIT,
-                        on_click=lambda _, m=message: self.edit_message(m),
-                        visible=is_current_user and not message['is_deleted']
-                    )
-                    delete_button = ft.IconButton(
-                        icon=ft.icons.DELETE,
-                        on_click=lambda _, m=message: self.delete_message(m),
-                        visible=is_current_user and not message['is_deleted']
-                    )
-
                     time_info = ft.Row(
                         [
                             ft.Text(formatted_time,
@@ -254,28 +252,63 @@ class ChatScreen(ft.UserControl):
                                     color=ft.colors.GREY_400 if is_current_user else ft.colors.GREY_700)
                         )
 
+                    message_container = ft.GestureDetector(
+                        content=ft.Container(
+                            content=ft.Column([
+                                ft.Text(message['user']['username'],
+                                        style=ft.TextThemeStyle.BODY_SMALL,
+                                        color=text_color),
+                                message_content,
+                                time_info
+                            ]),
+                            bgcolor=message_color,
+                            border_radius=ft.border_radius.all(10),
+                            padding=10,
+                            width=300,
+                        ),
+                        on_long_press_start=lambda e, msg=message,
+                                                   is_current=is_current_user: self.show_message_options(e=e,
+                                                                                                         message=msg,
+                                                                                                         is_current_user=is_current)
+                    )
+
                     self.message_list.controls.append(
-                        ft.Row([
-                            ft.Container(
-                                content=ft.Column([
-                                    ft.Text(message['user']['username'],
-                                            style=ft.TextThemeStyle.BODY_SMALL,
-                                            color=text_color),
-                                    message_content,
-                                    time_info
-                                ]),
-                                bgcolor=message_color,
-                                border_radius=ft.border_radius.all(10),
-                                padding=10,
-                                width=300,
-                            ),
-                            ft.Column([edit_button, delete_button]) if is_current_user else ft.Container(),
-                        ], alignment=alignment)
+                        ft.Row([message_container], alignment=alignment)
                     )
             self.message_list.auto_scroll = True
             self.update()
         else:
             self.chat_app.show_error_dialog("Error Loading Messages", f"Failed to load messages: {response.error}")
+
+    def show_message_options(self, e, message, is_current_user):
+        options = []
+
+        if is_current_user and not message['is_deleted']:
+            options.extend([
+                ft.ListTile(
+                    leading=ft.Icon(ft.icons.EDIT),
+                    title=ft.Text("Edit", style=ft.TextThemeStyle.TITLE_MEDIUM),
+                    subtitle=ft.Text("Modify your message", style=ft.TextThemeStyle.BODY_SMALL),
+                    on_click=lambda _: self.edit_message(message)
+                ),
+                ft.ListTile(
+                    leading=ft.Icon(ft.icons.DELETE),
+                    title=ft.Text("Delete", style=ft.TextThemeStyle.TITLE_MEDIUM),
+                    subtitle=ft.Text("Remove this message", style=ft.TextThemeStyle.BODY_SMALL),
+                    on_click=lambda _: self.delete_message(message)
+                ),
+            ])
+
+        if not options:
+            return  # No options to show
+
+        options_dialog = ft.AlertDialog(
+            content=ft.Column(options, tight=True),
+        )
+
+        options_dialog.open = True
+        self.page.dialog = options_dialog
+        self.page.update()
 
     def edit_message(self, message):
         def update_message_content(e):
