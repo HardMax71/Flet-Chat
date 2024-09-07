@@ -5,7 +5,7 @@ from app.api.dependencies import get_uow
 from app.config import settings
 from app.domain import schemas
 from app.infrastructure.security import (verify_password, create_access_token,
-                                         create_refresh_token, decode_token)
+                                         create_refresh_token, decode_refresh_token)
 from app.infrastructure.unit_of_work import UnitOfWork
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -60,38 +60,6 @@ async def register_user(user: schemas.UserCreate, uow: UnitOfWork = Depends(get_
         return await uow.users.create(user)
 
 
-@router.post("/auth/refresh", response_model=schemas.Token)
-async def refresh_token(refresh_token: str, uow: UnitOfWork = Depends(get_uow)):
-    async with uow:
-        token = await uow.tokens.get_by_refresh_token(refresh_token)
-        if not token:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid refresh token",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-
-        username = decode_token(refresh_token)
-        if not username:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid refresh token",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-
-        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-        new_access_token, new_access_expire = create_access_token(
-            data={"sub": username}, expires_delta=access_token_expires
-        )
-
-        # Update token in database
-        token.access_token = new_access_token
-        token.expires_at = new_access_expire
-        await uow.tokens.update(token)
-
-        return {"access_token": new_access_token, "refresh_token": refresh_token, "token_type": "bearer"}
-
-
 @router.post("/auth/refresh", response_model=schemas.TokenResponse)
 async def refresh_token(
         refresh_token_request: schemas.RefreshTokenRequest,
@@ -106,13 +74,14 @@ async def refresh_token(
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-        username = decode_token(token.refresh_token)
+        username = decode_refresh_token(token.refresh_token)
         if not username:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid refresh token",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+
 
         user = await uow.users.get_by_username(username)
         if not user:
