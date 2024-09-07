@@ -28,8 +28,9 @@ def test_get_chats(client, auth_header, db_session):
 
 def test_start_chat(client, auth_header, test_user2):
     response = client.post(
-        f"/api/v1/chats/start?other_user_id={test_user2.id}",
-        headers=auth_header
+        f"/api/v1/chats/start",
+        headers=auth_header,
+        json={"other_user_id": test_user2.id}
     )
     assert response.status_code == 200
     data = response.json()
