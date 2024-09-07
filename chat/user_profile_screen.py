@@ -1,5 +1,6 @@
 import flet as ft
 
+
 class UserProfileScreen(ft.UserControl):
     def __init__(self, chat_app):
         super().__init__()
@@ -59,9 +60,30 @@ class UserProfileScreen(ft.UserControl):
 
         response = self.chat_app.api_client.update_user(user_data)
         if response.success:
-            self.chat_app.show_error_dialog("Success", "Profile updated successfully")
+            # Show a dialog with a button to log out and redirect to login
+            dialog = ft.AlertDialog(
+                title=ft.Text("Profile Updated"),
+                content=ft.Text(
+                    "Your profile has been updated successfully. You need to log in again for the changes to take effect."),
+                actions=[
+                    ft.TextButton("Re-login", on_click=self.relogin),
+                ],
+            )
+            self.page.dialog = dialog
+            dialog.open = True
+            self.page.update()
         else:
             self.chat_app.show_error_dialog("Error Updating Profile", f"Failed to update profile: {response.error}")
+
+    def relogin(self, e):
+        # Close the dialog
+        if self.page.dialog:
+            self.page.dialog.open = False
+            self.page.update()
+
+        # Clear the token in the API client and show the login screen
+        self.chat_app.api_client.token = None
+        self.chat_app.show_login()
 
     def logout(self, e):
         # Clear the token in the API client

@@ -33,7 +33,7 @@ async def read_chats(
 
 @router.post("/chats/start", response_model=schemas.Chat)
 async def start_chat(
-        other_user_id: int = Query(..., description="ID of the user to start a chat with"),
+        other_user_id: int = Body(..., embed=True, description="ID of the user to start a chat with"),
         uow: UnitOfWork = Depends(get_uow),
         current_user: schemas.User = Depends(get_current_active_user)
 ):
