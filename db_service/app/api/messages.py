@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from app.api.dependencies import get_uow, get_current_active_user
 from app.domain import schemas
-from app.infrastructure.unit_of_work import UnitOfWork
+from app.infrastructure.unit_of_work import AbstractUnitOfWork
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 router = APIRouter()
@@ -12,12 +12,12 @@ router = APIRouter()
 @router.post("/messages/", response_model=schemas.Message)
 async def create_message(
         message: schemas.MessageCreate,
-        uow: UnitOfWork = Depends(get_uow),
+        uow: AbstractUnitOfWork = Depends(get_uow),
         current_user: schemas.User = Depends(get_current_active_user)
 ):
     async with uow:
-        return await uow.messages.create(message, current_user.id)
-
+        db_message = await uow.messages.create(message, current_user.id)
+        return db_message
 
 @router.get("/messages/{chat_id}", response_model=List[schemas.Message])
 async def read_messages(
@@ -25,7 +25,7 @@ async def read_messages(
         skip: int = 0,
         limit: int = 100,
         content: Optional[str] = Query(None, description="Filter messages by content"),
-        uow: UnitOfWork = Depends(get_uow),
+        uow: AbstractUnitOfWork = Depends(get_uow),
         current_user: schemas.User = Depends(get_current_active_user)
 ):
     async with uow:
@@ -37,7 +37,7 @@ async def read_messages(
 async def update_message(
         message_id: int,
         message_update: schemas.MessageUpdate,
-        uow: UnitOfWork = Depends(get_uow),
+        uow: AbstractUnitOfWork = Depends(get_uow),
         current_user: schemas.User = Depends(get_current_active_user)
 ):
     async with uow:
@@ -50,7 +50,7 @@ async def update_message(
 @router.delete("/messages/{message_id}", status_code=204)
 async def delete_message(
         message_id: int,
-        uow: UnitOfWork = Depends(get_uow),
+        uow: AbstractUnitOfWork = Depends(get_uow),
         current_user: schemas.User = Depends(get_current_active_user)
 ):
     async with uow:

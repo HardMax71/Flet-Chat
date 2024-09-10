@@ -6,7 +6,7 @@ from app.config import settings
 from app.domain import schemas
 from app.infrastructure.security import (verify_password, create_access_token,
                                          create_refresh_token, decode_refresh_token)
-from app.infrastructure.unit_of_work import UnitOfWork
+from app.infrastructure.unit_of_work import AbstractUnitOfWork
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 
@@ -16,7 +16,7 @@ router = APIRouter()
 @router.post("/auth/login", response_model=schemas.TokenResponse)
 async def login_for_access_token(
         form_data: OAuth2PasswordRequestForm = Depends(),
-        uow: UnitOfWork = Depends(get_uow)
+        uow: AbstractUnitOfWork = Depends(get_uow)
 ):
     async with uow:
         user = await uow.users.get_by_username(form_data.username)
@@ -52,7 +52,7 @@ async def login_for_access_token(
 
 
 @router.post("/auth/register", response_model=schemas.User)
-async def register_user(user: schemas.UserCreate, uow: UnitOfWork = Depends(get_uow)):
+async def register_user(user: schemas.UserCreate, uow: AbstractUnitOfWork = Depends(get_uow)):
     async with uow:
         db_user = await uow.users.get_by_username(user.username)
         if db_user:
@@ -63,7 +63,7 @@ async def register_user(user: schemas.UserCreate, uow: UnitOfWork = Depends(get_
 @router.post("/auth/refresh", response_model=schemas.TokenResponse)
 async def refresh_token(
         refresh_token_request: schemas.RefreshTokenRequest,
-        uow: UnitOfWork = Depends(get_uow)
+        uow: AbstractUnitOfWork = Depends(get_uow)
 ):
     async with uow:
         token = await uow.tokens.get_by_refresh_token(refresh_token_request.refresh_token)

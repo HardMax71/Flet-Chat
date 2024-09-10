@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from app.api.dependencies import get_uow, get_current_active_user
 from app.domain import schemas
-from app.infrastructure.unit_of_work import UnitOfWork
+from app.infrastructure.unit_of_work import AbstractUnitOfWork
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 router = APIRouter()
@@ -14,7 +14,7 @@ async def read_users(
         skip: int = 0,
         limit: int = 100,
         username: Optional[str] = Query(None, description="Filter users by username"),
-        uow: UnitOfWork = Depends(get_uow),
+        uow: AbstractUnitOfWork = Depends(get_uow),
         current_user: schemas.User = Depends(get_current_active_user)
 ):
     async with uow:
@@ -30,7 +30,7 @@ async def read_users_me(current_user: schemas.User = Depends(get_current_active_
 @router.put("/users/me", response_model=schemas.User)
 async def update_user(
         user_update: schemas.UserUpdate,
-        uow: UnitOfWork = Depends(get_uow),
+        uow: AbstractUnitOfWork = Depends(get_uow),
         current_user: schemas.User = Depends(get_current_active_user)
 ):
     async with uow:
@@ -42,7 +42,7 @@ async def update_user(
 
 @router.delete("/users/me", status_code=204)
 async def delete_user(
-        uow: UnitOfWork = Depends(get_uow),
+        uow: AbstractUnitOfWork = Depends(get_uow),
         current_user: schemas.User = Depends(get_current_active_user)
 ):
     async with uow:
@@ -55,7 +55,7 @@ async def delete_user(
 @router.get("/users/search", response_model=List[schemas.UserBasic])
 async def search_users(
         query: str,
-        uow: UnitOfWork = Depends(get_uow),
+        uow: AbstractUnitOfWork = Depends(get_uow),
         current_user: schemas.User = Depends(get_current_active_user)
 ):
     async with uow:

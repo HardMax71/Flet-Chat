@@ -1,72 +1,76 @@
-# app/tests/conftest.py
+import asyncio
+import random
+import string
+
 import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
-
-from app.main import app
-from app.infrastructure.database import Base
-from app.api.dependencies import get_db
 from app.domain import models
+from app.infrastructure.database import Base, get_session
 from app.infrastructure.security import get_password_hash
+from app.main import app
+from httpx import AsyncClient, ASGITransport
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
 
-# Use in-memory SQLite database
-SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
+SQLALCHEMY_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 @pytest.fixture(scope="function")
-def db_session():
-    Base.metadata.create_all(bind=engine)
-    db = TestingSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-        Base.metadata.drop_all(bind=engine)
+async def engine():
+    engine = create_async_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield engine
+    await engine.dispose()
+
 
 @pytest.fixture(scope="function")
-def client(db_session):
-    def override_get_db():
-        try:
-            yield db_session
-        finally:
-            pass
-    app.dependency_overrides[get_db] = override_get_db
-    yield TestClient(app)
-    del app.dependency_overrides[get_db]
+async def db_session(engine):
+    TestingSessionLocal = sessionmaker(
+        engine, class_=AsyncSession, expire_on_commit=False
+    )
+    async with TestingSessionLocal() as session:
+        yield session
+
 
 @pytest.fixture(scope="function")
-def test_user(db_session):
+async def client(db_session):
+    async def override_get_session():
+        yield db_session
+
+    app.dependency_overrides[get_session] = override_get_session
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        yield ac
+    del app.dependency_overrides[get_session]
+
+
+@pytest.fixture(scope="function")
+async def test_user(db_session):
+    random_string = ''.join(random.choices(string.ascii_lowercase + string.digits, k=10))
     user = models.User(
-        username="testuser",
-        email="testuser@example.com",
+        username=f"testuser_{random_string}",
+        email=f"testuser_{random_string}@example.com",
         hashed_password=get_password_hash("testpassword")
     )
     db_session.add(user)
-    db_session.commit()
+    await db_session.commit()
+    await db_session.refresh(user)
     return user
 
+
 @pytest.fixture(scope="function")
-def test_user2(db_session):
+async def test_user2(db_session):
     user = models.User(
-        username="testuser2",
-        email="testuser2@example.com",
+        username=f"testuser2_{random.randint(1, 1000)}",
+        email=f"testuser2_{random.randint(1, 1000)}@example.com",
         hashed_password=get_password_hash("testpassword2")
     )
     db_session.add(user)
-    db_session.commit()
+    await db_session.commit()
     return user
 
 @pytest.fixture(scope="function")
-def auth_header(client, test_user):
-    response = client.post(
+async def auth_header(client, test_user):
+    response = await client.post(
         "/api/v1/auth/login",
         data={"username": test_user.username, "password": "testpassword"}
     )

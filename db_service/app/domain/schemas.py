@@ -51,7 +51,7 @@ class ChatUpdate(BaseModel):
 class Chat(ChatBase):
     id: int
     created_at: datetime
-    members: List[User] = []
+    members: List[User] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
 

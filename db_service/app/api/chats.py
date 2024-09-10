@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from app.api.dependencies import get_uow, get_current_active_user
 from app.domain import schemas
-from app.infrastructure.unit_of_work import UnitOfWork
+from app.infrastructure.unit_of_work import AbstractUnitOfWork
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
 
 router = APIRouter()
@@ -12,7 +12,7 @@ router = APIRouter()
 @router.post("/chats/", response_model=schemas.Chat)
 async def create_chat(
         chat: schemas.ChatCreate,
-        uow: UnitOfWork = Depends(get_uow),
+        uow: AbstractUnitOfWork = Depends(get_uow),
         current_user: schemas.User = Depends(get_current_active_user)
 ):
     async with uow:
@@ -24,7 +24,7 @@ async def read_chats(
         skip: int = 0,
         limit: int = 100,
         name: Optional[str] = Query(None, description="Filter chats by name"),
-        uow: UnitOfWork = Depends(get_uow),
+        uow: AbstractUnitOfWork = Depends(get_uow),
         current_user: schemas.User = Depends(get_current_active_user)
 ):
     async with uow:
@@ -34,7 +34,7 @@ async def read_chats(
 @router.post("/chats/start", response_model=schemas.Chat)
 async def start_chat(
         other_user_id: int = Body(..., embed=True, description="ID of the user to start a chat with"),
-        uow: UnitOfWork = Depends(get_uow),
+        uow: AbstractUnitOfWork = Depends(get_uow),
         current_user: schemas.User = Depends(get_current_active_user)
 ):
     async with uow:
@@ -47,7 +47,7 @@ async def start_chat(
 @router.get("/chats/{chat_id}", response_model=schemas.Chat)
 async def read_chat(
         chat_id: int,
-        uow: UnitOfWork = Depends(get_uow),
+        uow: AbstractUnitOfWork = Depends(get_uow),
         current_user: schemas.User = Depends(get_current_active_user)
 ):
     async with uow:
@@ -61,14 +61,14 @@ async def read_chat(
 async def update_chat(
         chat_id: int,
         chat_update: schemas.ChatUpdate,
-        uow: UnitOfWork = Depends(get_uow),
+        uow: AbstractUnitOfWork = Depends(get_uow),
         current_user: schemas.User = Depends(get_current_active_user)
 ):
     async with uow:
         db_chat = await uow.chats.get_by_id(chat_id, current_user.id)
         if db_chat is None:
             raise HTTPException(status_code=404, detail="Chat not found")
-        updated_chat = await uow.chats.update(chat_id, chat_update)
+        updated_chat = await uow.chats.update(chat_id, chat_update, current_user.id)
         if not updated_chat:
             raise HTTPException(status_code=404, detail="Chat not found")
         return updated_chat
@@ -77,14 +77,14 @@ async def update_chat(
 @router.delete("/chats/{chat_id}", status_code=204)
 async def delete_chat(
         chat_id: int,
-        uow: UnitOfWork = Depends(get_uow),
+        uow: AbstractUnitOfWork = Depends(get_uow),
         current_user: schemas.User = Depends(get_current_active_user)
 ):
     async with uow:
         db_chat = await uow.chats.get_by_id(chat_id, current_user.id)
         if db_chat is None:
             raise HTTPException(status_code=404, detail="Chat not found")
-        deleted = await uow.chats.delete(chat_id)
+        deleted = await uow.chats.delete(chat_id, current_user.id)
         if not deleted:
             raise HTTPException(status_code=404, detail="Chat not found")
     return {"message": "Chat deleted successfully"}
@@ -94,11 +94,11 @@ async def delete_chat(
 async def add_chat_member(
         chat_id: int,
         user_id: int = Body(..., embed=True),
-        uow: UnitOfWork = Depends(get_uow),
+        uow: AbstractUnitOfWork = Depends(get_uow),
         current_user: schemas.User = Depends(get_current_active_user)
 ):
     async with uow:
-        updated_chat = await uow.chats.add_member(chat_id, user_id)
+        updated_chat = await uow.chats.add_member(chat_id, user_id, current_user.id)
         if not updated_chat:
             raise HTTPException(status_code=404, detail="Chat or user not found")
         return updated_chat
@@ -108,11 +108,11 @@ async def add_chat_member(
 async def remove_chat_member(
         chat_id: int,
         user_id: int,
-        uow: UnitOfWork = Depends(get_uow),
+        uow: AbstractUnitOfWork = Depends(get_uow),
         current_user: schemas.User = Depends(get_current_active_user)
 ):
     async with uow:
-        removed = await uow.chats.remove_member(chat_id, user_id)
+        removed = await uow.chats.remove_member(chat_id, user_id, current_user.id)
         if not removed:
             raise HTTPException(status_code=404, detail="Chat or user not found")
     return {"message": "Member removed from chat successfully"}

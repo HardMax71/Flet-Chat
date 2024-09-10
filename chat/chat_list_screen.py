@@ -70,33 +70,33 @@ class ChatListScreen(ft.UserControl):
                         color=ft.colors.GREY_700
                     )
 
-                    self.chat_list.controls.append(
-                        ft.ListTile(
-                            title=ft.Row(
-                                [
-                                    ft.Column(
-                                        [chat_name, members_text],
-                                        alignment=ft.MainAxisAlignment.CENTER,
-                                        spacing=5,
-                                        expand=True
-                                    ),
-                                    ft.IconButton(
-                                        icon=ft.icons.EDIT,
-                                        on_click=lambda _, c=chat: self.edit_chat(c),
-                                        tooltip="Edit chat"
-                                    ),
-                                    ft.IconButton(
-                                        icon=ft.icons.DELETE,
-                                        on_click=lambda _, c=chat: self.delete_chat(c),
-                                        tooltip="Delete chat"
-                                    )
-                                ],
-                                alignment=ft.MainAxisAlignment.SPACE_BETWEEN
-                            ),
-                            on_click=lambda _, chat_id=chat['id']: self.chat_app.show_chat(chat_id)
-                        )
+                    list_tile = ft.ListTile(
+                        title=ft.Row(
+                            [
+                                ft.Column(
+                                    [chat_name, members_text],
+                                    alignment=ft.MainAxisAlignment.CENTER,
+                                    spacing=5,
+                                    expand=True
+                                ),
+                                ft.IconButton(
+                                    icon=ft.icons.EDIT,
+                                    on_click=lambda _, c=chat: self.edit_chat(c),
+                                    tooltip="Edit chat"
+                                ),
+                                ft.IconButton(
+                                    icon=ft.icons.DELETE,
+                                    on_click=lambda _, c=chat: self.delete_chat(c),
+                                    tooltip="Delete chat"
+                                )
+                            ],
+                            alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+                        ),
+                        on_click=lambda _, chat_id=chat['id']: self.chat_app.show_chat(chat_id)
                     )
-                self.update()
+                    list_tile.data = chat  # Store the chat data in the ListTile
+                    self.chat_list.controls.append(list_tile)
+            self.update()
         else:
             self.chat_app.show_error_dialog("Error Loading Chats", f"Failed to load chats: {response.error}")
 
@@ -134,7 +134,16 @@ class ChatListScreen(ft.UserControl):
         def confirm_delete(e):
             response = self.chat_app.api_client.delete_chat(chat['id'])
             if response.success:
-                self.load_chats()
+                # Remove the deleted chat from the chat list
+                self.chat_list.controls = [c for c in self.chat_list.controls if
+                                           isinstance(c, ft.ListTile) and c.data['id'] != chat['id']]
+                if not self.chat_list.controls:
+                    self.chat_list.controls.append(
+                        ft.Text("No chats found. Search for users to start a new chat!",
+                                style=ft.TextThemeStyle.BODY_LARGE,
+                                color=ft.colors.GREY_500)
+                    )
+                self.update()  # Refresh the UI to reflect the changes
                 dialog.open = False
                 self.page.update()
             else:

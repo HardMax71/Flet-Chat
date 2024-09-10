@@ -1,37 +1,42 @@
 # app/infrastructure/repositories.py
-from typing import Optional
-
-from sqlalchemy.orm import Session
-from sqlalchemy import or_, func
+from typing import Optional, List
+from sqlalchemy import select, or_, func
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.domain import models, schemas
 from app.domain.interfaces import (AbstractUserRepository, AbstractChatRepository,
                                    AbstractMessageRepository, AbstractTokenRepository)
 from app.infrastructure.security import get_password_hash
+from sqlalchemy.orm import selectinload, joinedload
+
 
 class SQLAlchemyUserRepository(AbstractUserRepository):
-    def __init__(self, session: Session):
+    def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def get_by_id(self, user_id: int):
-        return self.session.query(models.User).filter(models.User.id == user_id).first()
+    async def get_by_id(self, user_id: int) -> Optional[models.User]:
+        result = await self.session.execute(select(models.User).filter(models.User.id == user_id))
+        return result.scalar_one_or_none()
 
-    async def get_by_username(self, username: str):
-        return self.session.query(models.User).filter(models.User.username == username).first()
+    async def get_by_username(self, username: str) -> Optional[models.User]:
+        result = await self.session.execute(select(models.User).filter(models.User.username == username))
+        return result.scalar_one_or_none()
 
-    async def get_all(self, skip: int = 0, limit: int = 100, username: str = None):
-        query = self.session.query(models.User)
+    async def get_all(self, skip: int = 0, limit: int = 100, username: str = None) -> List[models.User]:
+        query = select(models.User)
         if username:
             query = query.filter(models.User.username.ilike(f"%{username}%"))
-        return query.offset(skip).limit(limit).all()
+        query = query.offset(skip).limit(limit)
+        result = await self.session.execute(query)
+        return result.scalars().all()
 
-    async def create(self, user: schemas.UserCreate):
+    async def create(self, user: schemas.UserCreate) -> models.User:
         hashed_password = get_password_hash(user.password)
         db_user = models.User(username=user.username, email=user.email, hashed_password=hashed_password)
         self.session.add(db_user)
-        self.session.flush()
+        await self.session.commit()
         return db_user
 
-    async def update(self, user_id: int, user_update: schemas.UserUpdate):
+    async def update(self, user_id: int, user_update: schemas.UserUpdate) -> Optional[models.User]:
         db_user = await self.get_by_id(user_id)
         if not db_user:
             return None
@@ -43,113 +48,129 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
         for key, value in update_data.items():
             setattr(db_user, key, value)
 
-        self.session.flush()
+        await self.session.commit()
         return db_user
 
-    async def delete(self, user_id: int):
+    async def delete(self, user_id: int) -> bool:
         db_user = await self.get_by_id(user_id)
         if not db_user:
             return False
-        self.session.delete(db_user)
-        self.session.flush()
+        await self.session.delete(db_user)
+        await self.session.commit()
         return True
 
-    async def search_users(self, query: str, current_user_id: int):
-        return self.session.query(models.User).filter(
+    async def search_users(self, query: str, current_user_id: int) -> List[models.User]:
+        stmt = select(models.User).filter(
             models.User.id != current_user_id,
             or_(
                 models.User.username.ilike(f"%{query}%"),
                 models.User.email.ilike(f"%{query}%")
             )
-        ).all()
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
 
 class SQLAlchemyChatRepository(AbstractChatRepository):
-    def __init__(self, session: Session):
+    def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def get_by_id(self, chat_id: int, user_id: int):
-        return self.session.query(models.Chat).filter(
+    async def get_by_id(self, chat_id: int, user_id: int) -> Optional[models.Chat]:
+        stmt = select(models.Chat).options(selectinload(models.Chat.members)).filter(
             models.Chat.id == chat_id,
             models.Chat.members.any(id=user_id)
-        ).first()
+        )
+        result = await self.session.execute(stmt)
+        return result.unique().scalar_one_or_none()
 
-    async def get_all(self, user_id: int, skip: int = 0, limit: int = 100, name: str = None):
-        query = self.session.query(models.Chat).filter(models.Chat.members.any(id=user_id))
+    async def get_all(self, user_id: int, skip: int = 0, limit: int = 100, name: str = None) -> List[models.Chat]:
+        stmt = select(models.Chat).options(selectinload(models.Chat.members)).filter(
+            models.Chat.members.any(id=user_id))
         if name:
-            query = query.filter(models.Chat.name.ilike(f"%{name}%"))
-        return query.offset(skip).limit(limit).all()
+            stmt = stmt.filter(models.Chat.name.ilike(f"%{name}%"))
+        stmt = stmt.offset(skip).limit(limit)
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
 
-    async def create(self, chat: schemas.ChatCreate, user_id: int):
+    async def create(self, chat: schemas.ChatCreate, user_id: int) -> models.Chat:
         db_chat = models.Chat(name=chat.name)
-        db_chat.members = self.session.query(models.User).filter(models.User.id.in_([user_id] + chat.member_ids)).all()
+        members = await self.session.execute(select(models.User).filter(models.User.id.in_([user_id] + chat.member_ids)))
+        db_chat.members = members.scalars().all()
         self.session.add(db_chat)
-        self.session.flush()
+        await self.session.commit()
         return db_chat
 
-    async def update(self, chat_id: int, chat_update: schemas.ChatUpdate):
-        db_chat = self.session.query(models.Chat).filter(models.Chat.id == chat_id).first()
+    async def update(self, chat_id: int, chat_update: schemas.ChatUpdate, user_id: int) -> Optional[models.Chat]:
+        db_chat = await self.get_by_id(chat_id, user_id)
         if not db_chat:
             return None
 
         update_data = chat_update.model_dump(exclude_unset=True)
         for key, value in update_data.items():
             if key == "member_ids":
-                db_chat.members = self.session.query(models.User).filter(models.User.id.in_(value)).all()
+                members = await self.session.execute(select(models.User).filter(models.User.id.in_(value)))
+                db_chat.members = members.scalars().all()
             else:
                 setattr(db_chat, key, value)
 
-        self.session.flush()
+        await self.session.commit()
         return db_chat
 
-    async def delete(self, chat_id: int):
-        db_chat = self.session.query(models.Chat).filter(models.Chat.id == chat_id).first()
+    async def delete(self, chat_id: int, user_id: int) -> bool:
+        db_chat = await self.get_by_id(chat_id, user_id)
         if not db_chat:
             return False
-        self.session.delete(db_chat)
-        self.session.flush()
+        await self.session.delete(db_chat)
+        await self.session.commit()
         return True
 
-    async def add_member(self, chat_id: int, user_id: int):
-        db_chat = self.session.query(models.Chat).filter(models.Chat.id == chat_id).first()
+    async def add_member(self, chat_id: int, user_id: int, current_user_id: int) -> Optional[models.Chat]:
+        db_chat = await self.get_by_id(chat_id, current_user_id)
         if not db_chat:
             return None
 
-        db_user = self.session.query(models.User).filter(models.User.id == user_id).first()
+        db_user = await self.session.execute(select(models.User).filter(models.User.id == user_id))
+        db_user = db_user.scalar_one_or_none()
         if not db_user:
             return None
 
-        if db_user not in db_chat.members:
-            db_chat.members.append(db_user)
-            self.session.flush()
+        db_chat.members.append(db_user)
+        await self.session.commit()
+        await self.session.refresh(db_chat, ['members'])
 
         return db_chat
 
-    async def remove_member(self, chat_id: int, user_id: int):
-        db_chat = self.session.query(models.Chat).filter(models.Chat.id == chat_id).first()
+    async def remove_member(self, chat_id: int, user_id: int, current_user_id: int) -> bool:
+        db_chat = await self.get_by_id(chat_id, current_user_id)
         if not db_chat:
             return False
 
-        db_user = self.session.query(models.User).filter(models.User.id == user_id).first()
+        db_user = await self.session.execute(select(models.User).filter(models.User.id == user_id))
+        db_user = db_user.scalar_one_or_none()
         if not db_user:
             return False
 
         if db_user in db_chat.members:
             db_chat.members.remove(db_user)
-            self.session.flush()
+            await self.session.commit()
 
         return True
 
-    async def start_chat(self, current_user_id: int, other_user_id: int):
-        existing_chat = self.session.query(models.Chat).filter(
+
+    async def start_chat(self, current_user_id: int, other_user_id: int) -> Optional[models.Chat]:
+        stmt = select(models.Chat).filter(
             models.Chat.members.any(id=current_user_id),
             models.Chat.members.any(id=other_user_id)
-        ).join(models.Chat.members).group_by(models.Chat.id).having(func.count(models.User.id) == 2).first()
+        ).join(models.Chat.members).group_by(models.Chat.id).having(func.count(models.User.id) == 2)
+        result = await self.session.execute(stmt)
+        existing_chat = result.scalar_one_or_none()
 
         if existing_chat:
             return existing_chat
 
-        current_user = self.session.query(models.User).filter(models.User.id == current_user_id).first()
-        other_user = self.session.query(models.User).filter(models.User.id == other_user_id).first()
+        current_user = await self.session.execute(select(models.User).filter(models.User.id == current_user_id))
+        other_user = await self.session.execute(select(models.User).filter(models.User.id == other_user_id))
+        current_user = current_user.scalar_one_or_none()
+        other_user = other_user.scalar_one_or_none()
 
         if not other_user:
             return None
@@ -157,83 +178,87 @@ class SQLAlchemyChatRepository(AbstractChatRepository):
         new_chat = models.Chat(name=f"Chat with {other_user.username}")
         new_chat.members = [current_user, other_user]
         self.session.add(new_chat)
-        self.session.flush()
+        await self.session.commit()
         return new_chat
 
 class SQLAlchemyMessageRepository(AbstractMessageRepository):
-    def __init__(self, session: Session):
+    def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def get_by_id(self, message_id: int, user_id: int):
-        return self.session.query(models.Message).join(models.Chat).filter(
+    async def get_by_id(self, message_id: int, user_id: int) -> Optional[models.Message]:
+        stmt = select(models.Message).options(joinedload(models.Message.user)).join(models.Chat).filter(
             models.Message.id == message_id,
             models.Chat.members.any(id=user_id)
-        ).first()
+        )
+        result = await self.session.execute(stmt)
+        return result.unique().scalar_one_or_none()
 
-    async def get_all(self, chat_id: int, user_id: int, skip: int = 0, limit: int = 100, content: str = None):
-        query = self.session.query(models.Message).join(models.Chat).filter(
+    async def get_all(self, chat_id: int, user_id: int, skip: int = 0, limit: int = 100, content: str = None) -> List[models.Message]:
+        stmt = select(models.Message).options(joinedload(models.Message.user)).join(models.Chat).filter(
             models.Message.chat_id == chat_id,
             models.Chat.members.any(id=user_id)
         )
         if content:
-            query = query.filter(models.Message.content.ilike(f"%{content}%"))
-        return query.order_by(models.Message.created_at.desc()).offset(skip).limit(limit).all()
+            stmt = stmt.filter(models.Message.content.ilike(f"%{content}%"))
+        stmt = stmt.order_by(models.Message.created_at.desc()).offset(skip).limit(limit)
+        result = await self.session.execute(stmt)
+        return result.unique().scalars().all()
 
-    async def create(self, message: schemas.MessageCreate, user_id: int):
+    async def create(self, message: schemas.MessageCreate, user_id: int) -> models.Message:
         db_message = models.Message(content=message.content, chat_id=message.chat_id, user_id=user_id)
         self.session.add(db_message)
-        self.session.flush()
+        await self.session.commit()
+        await self.session.refresh(db_message, ['user'])
         return db_message
 
-    async def update(self, message_id: int, message_update: schemas.MessageUpdate, user_id: int):
+    async def update(self, message_id: int, message_update: schemas.MessageUpdate, user_id: int) -> Optional[
+        models.Message]:
         db_message = await self.get_by_id(message_id, user_id)
-        if not db_message:
-            return None
-
-        if db_message.user_id != user_id:
+        if not db_message or db_message.user_id != user_id:
             return None
 
         db_message.content = message_update.content
         db_message.updated_at = func.now()
-        self.session.flush()
+        await self.session.commit()
+        await self.session.refresh(db_message)
         return db_message
 
-    async def delete(self, message_id: int, user_id: int):
+    async def delete(self, message_id: int, user_id: int) -> bool:
         db_message = await self.get_by_id(message_id, user_id)
-        if not db_message:
-            return False
-
-        if db_message.user_id != user_id:
+        if not db_message or db_message.user_id != user_id:
             return False
 
         db_message.is_deleted = True
         db_message.content = "<This message has been deleted>"
-        self.session.flush()
+        await self.session.commit()
         return True
 
-
 class SQLAlchemyTokenRepository(AbstractTokenRepository):
-    def __init__(self, session: Session):
+    def __init__(self, session: AsyncSession):
         self.session = session
 
     async def create(self, token: schemas.TokenCreate) -> models.Token:
         db_token = models.Token(**token.model_dump())
         self.session.add(db_token)
-        self.session.flush()
+        await self.session.commit()
         return db_token
 
     async def get_by_refresh_token(self, refresh_token: str) -> Optional[models.Token]:
-        return self.session.query(models.Token).filter(models.Token.refresh_token == refresh_token).first()
+        stmt = select(models.Token).filter(models.Token.refresh_token == refresh_token)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def update(self, token: models.Token) -> models.Token:
         self.session.add(token)
-        self.session.flush()
+        await self.session.commit()
         return token
 
     async def delete(self, token_id: int) -> bool:
-        db_token = self.session.query(models.Token).filter(models.Token.id == token_id).first()
+        stmt = select(models.Token).filter(models.Token.id == token_id)
+        result = await self.session.execute(stmt)
+        db_token = result.scalar_one_or_none()
         if not db_token:
             return False
-        self.session.delete(db_token)
-        self.session.flush()
+        await self.session.delete(db_token)
+        await self.session.commit()
         return True
