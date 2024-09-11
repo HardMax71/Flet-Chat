@@ -81,6 +81,10 @@ class AbstractMessageRepository(ABC):
         pass
 
     @abstractmethod
+    async def check_chat_exists_and_user_is_member(self, chat_id: int, user_id: int) -> bool:
+        pass
+
+    @abstractmethod
     async def create(self, message: schemas.MessageCreate, user_id: int) -> schemas.Message:
         pass
 
@@ -104,9 +108,17 @@ class AbstractTokenRepository(ABC):
         pass
 
     @abstractmethod
+    async def get_by_access_token(self, access_token: str) -> Optional[models.Token]:
+        pass
+
+    @abstractmethod
     async def update(self, token: models.Token) -> models.Token:
         pass
 
     @abstractmethod
     async def delete(self, token_id: int) -> bool:
+        pass
+
+    @abstractmethod
+    async def delete_by_access_token(self, access_token: str) -> bool:
         pass

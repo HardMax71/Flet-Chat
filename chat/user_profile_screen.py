@@ -86,9 +86,15 @@ class UserProfileScreen(ft.UserControl):
         self.chat_app.show_login()
 
     def logout(self, e):
-        # Clear the token in the API client
-        self.chat_app.api_client.token = None
-        self.chat_app.show_login()
+        response = self.chat_app.api_client.logout()
+        if response.success:
+            # Clear the tokens in the API client
+            self.chat_app.api_client.access_token = None
+            self.chat_app.api_client.refresh_token = None
+            self.chat_app.api_client.token_expiry = None
+            self.chat_app.show_login()
+        else:
+            self.chat_app.show_error_dialog("Error Logging Out", f"Failed to logout: {response.error}")
 
     def delete_account(self, e):
         def confirm_delete(e):

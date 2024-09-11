@@ -16,9 +16,13 @@ async def create_message(
         current_user: schemas.User = Depends(get_current_active_user)
 ):
     async with uow:
+        # Check if the chat exists and the user is a member
+        chat_exists = await uow.messages.check_chat_exists_and_user_is_member(message.chat_id, current_user.id)
+        if not chat_exists:
+            raise HTTPException(status_code=404, detail="Chat not found or user is not a member")
+
         db_message = await uow.messages.create(message, current_user.id)
         return db_message
-
 @router.get("/messages/{chat_id}", response_model=List[schemas.Message])
 async def read_messages(
         chat_id: int,

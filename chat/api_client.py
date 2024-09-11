@@ -1,4 +1,3 @@
-import time
 from datetime import datetime, timedelta
 
 import requests
@@ -47,7 +46,8 @@ class ApiClient:
 
         if auth_required:
             current_time = datetime.utcnow()
-            if not self.access_token or (self.token_expiry and current_time >= self.token_expiry - timedelta(minutes=5)):
+            if not self.access_token or (
+                    self.token_expiry and current_time >= self.token_expiry - timedelta(minutes=5)):
                 if not self._refresh_token():
                     return ApiResponse(False, error="Failed to refresh token. Please log in again.")
 
@@ -139,3 +139,11 @@ class ApiClient:
 
     def start_chat(self, other_user_id: int):
         return self._request("POST", "/chats/start", json={"other_user_id": other_user_id})
+
+    def logout(self):
+        response = self._request("POST", "/auth/logout")
+        if response.success:
+            self.access_token = None
+            self.refresh_token = None
+            self.token_expiry = None
+        return response

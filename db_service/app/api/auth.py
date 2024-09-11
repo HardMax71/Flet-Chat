@@ -1,7 +1,7 @@
 # app/api/auth.py
 from datetime import timedelta
 
-from app.api.dependencies import get_uow
+from app.api.dependencies import get_uow, oauth2_scheme
 from app.config import settings
 from app.domain import schemas
 from app.infrastructure.security import (verify_password, create_access_token,
@@ -82,7 +82,6 @@ async def refresh_token(
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-
         user = await uow.users.get_by_username(username)
         if not user:
             raise HTTPException(
@@ -90,15 +89,17 @@ async def refresh_token(
                 detail="User not found",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-
+        # Generate new access token
         new_access_token, new_access_token_expires = create_access_token(
             data={"sub": user.username},
             expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         )
+        # Generate new refresh token
         new_refresh_token, new_refresh_token_expires = create_refresh_token(
             data={"sub": user.username}
         )
 
+        # Update token in database
         token.access_token = new_access_token
         token.refresh_token = new_refresh_token
         token.expires_at = new_access_token_expires
@@ -111,3 +112,13 @@ async def refresh_token(
             expires_at=new_access_token_expires,
             user_id=user.id
         )
+
+
+@router.post("/auth/logout")
+async def logout(token: str = Depends(oauth2_scheme),
+                 uow: AbstractUnitOfWork = Depends(get_uow)):
+    async with uow:
+        deleted = await uow.tokens.delete_by_access_token(token)
+        if not deleted:
+            raise HTTPException(status_code=400, detail="Invalid token")
+    return {"message": "Successfully logged out"}

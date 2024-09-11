@@ -204,6 +204,14 @@ class SQLAlchemyMessageRepository(AbstractMessageRepository):
         result = await self.session.execute(stmt)
         return result.unique().scalars().all()
 
+    async def check_chat_exists_and_user_is_member(self, chat_id: int, user_id: int) -> bool:
+        stmt = select(models.Chat).filter(
+            models.Chat.id == chat_id,
+            models.Chat.members.any(id=user_id)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none() is not None
+
     async def create(self, message: schemas.MessageCreate, user_id: int) -> models.Message:
         db_message = models.Message(content=message.content, chat_id=message.chat_id, user_id=user_id)
         self.session.add(db_message)
@@ -243,6 +251,11 @@ class SQLAlchemyTokenRepository(AbstractTokenRepository):
         await self.session.commit()
         return db_token
 
+    async def get_by_access_token(self, access_token: str) -> Optional[models.Token]:
+        stmt = select(models.Token).filter(models.Token.access_token == access_token)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def get_by_refresh_token(self, refresh_token: str) -> Optional[models.Token]:
         stmt = select(models.Token).filter(models.Token.refresh_token == refresh_token)
         result = await self.session.execute(stmt)
@@ -255,6 +268,16 @@ class SQLAlchemyTokenRepository(AbstractTokenRepository):
 
     async def delete(self, token_id: int) -> bool:
         stmt = select(models.Token).filter(models.Token.id == token_id)
+        result = await self.session.execute(stmt)
+        db_token = result.scalar_one_or_none()
+        if not db_token:
+            return False
+        await self.session.delete(db_token)
+        await self.session.commit()
+        return True
+
+    async def delete_by_access_token(self, access_token: str) -> bool:
+        stmt = select(models.Token).filter(models.Token.access_token == access_token)
         result = await self.session.execute(stmt)
         db_token = result.scalar_one_or_none()
         if not db_token:

@@ -22,8 +22,14 @@ async def get_current_user(token: str = Depends(oauth2_scheme), uow: UnitOfWork 
         )
     async with uow:
         user = await uow.users.get_by_username(username)
-    if user is None:
-        raise HTTPException(status_code=404, detail="User not found")
+        # Check if the token is still valid (not logged out)
+        valid_token = await uow.tokens.get_by_access_token(token)
+        if user is None or valid_token is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
     return user
 
 async def get_current_active_user(current_user: schemas.User = Depends(get_current_user)):
