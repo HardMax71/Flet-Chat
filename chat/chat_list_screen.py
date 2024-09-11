@@ -195,7 +195,7 @@ class ChatListScreen(ft.UserControl):
         self.search_results.value = None
         self.search_results.options.clear()
         self.search_results.visible = False
-        self.update()
+        self.chat_app.page.update()
 
     def did_mount(self):
         self.load_chats()
