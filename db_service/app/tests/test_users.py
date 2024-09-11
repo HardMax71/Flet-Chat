@@ -43,7 +43,7 @@ async def test_update_user_username(client: AsyncClient, auth_header):
 
 
 async def test_update_user_password(client: AsyncClient, auth_header):
-    new_password = "newpassword123"
+    new_password = f"newpassword{random.randint(1, 1000000)}"
     response = await client.put(
         "/api/v1/users/me",
         headers=auth_header,
