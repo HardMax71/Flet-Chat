@@ -104,6 +104,10 @@ class AbstractTokenRepository(ABC):
         pass
 
     @abstractmethod
+    async def get_by_user_id(self, user_id: int) -> Optional[models.Token]:
+        pass
+
+    @abstractmethod
     async def get_by_refresh_token(self, refresh_token: str) -> Optional[models.Token]:
         pass
 

@@ -1,11 +1,12 @@
 # app/infrastructure/repositories.py
 from typing import Optional, List
-from sqlalchemy import select, or_, func
-from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.domain import models, schemas
 from app.domain.interfaces import (AbstractUserRepository, AbstractChatRepository,
                                    AbstractMessageRepository, AbstractTokenRepository)
 from app.infrastructure.security import get_password_hash
+from sqlalchemy import select, or_, func
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload, joinedload
 
 
@@ -70,6 +71,7 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
+
 class SQLAlchemyChatRepository(AbstractChatRepository):
     def __init__(self, session: AsyncSession):
         self.session = session
@@ -93,7 +95,8 @@ class SQLAlchemyChatRepository(AbstractChatRepository):
 
     async def create(self, chat: schemas.ChatCreate, user_id: int) -> models.Chat:
         db_chat = models.Chat(name=chat.name)
-        members = await self.session.execute(select(models.User).filter(models.User.id.in_([user_id] + chat.member_ids)))
+        members = await self.session.execute(
+            select(models.User).filter(models.User.id.in_([user_id] + chat.member_ids)))
         db_chat.members = members.scalars().all()
         self.session.add(db_chat)
         await self.session.commit()
@@ -155,7 +158,6 @@ class SQLAlchemyChatRepository(AbstractChatRepository):
 
         return True
 
-
     async def start_chat(self, current_user_id: int, other_user_id: int) -> Optional[models.Chat]:
         stmt = select(models.Chat).filter(
             models.Chat.members.any(id=current_user_id),
@@ -181,6 +183,7 @@ class SQLAlchemyChatRepository(AbstractChatRepository):
         await self.session.commit()
         return new_chat
 
+
 class SQLAlchemyMessageRepository(AbstractMessageRepository):
     def __init__(self, session: AsyncSession):
         self.session = session
@@ -193,7 +196,8 @@ class SQLAlchemyMessageRepository(AbstractMessageRepository):
         result = await self.session.execute(stmt)
         return result.unique().scalar_one_or_none()
 
-    async def get_all(self, chat_id: int, user_id: int, skip: int = 0, limit: int = 100, content: str = None) -> List[models.Message]:
+    async def get_all(self, chat_id: int, user_id: int, skip: int = 0, limit: int = 100, content: str = None) -> List[
+        models.Message]:
         stmt = select(models.Message).options(joinedload(models.Message.user)).join(models.Chat).filter(
             models.Message.chat_id == chat_id,
             models.Chat.members.any(id=user_id)
@@ -241,6 +245,7 @@ class SQLAlchemyMessageRepository(AbstractMessageRepository):
         await self.session.commit()
         return True
 
+
 class SQLAlchemyTokenRepository(AbstractTokenRepository):
     def __init__(self, session: AsyncSession):
         self.session = session
@@ -250,6 +255,11 @@ class SQLAlchemyTokenRepository(AbstractTokenRepository):
         self.session.add(db_token)
         await self.session.commit()
         return db_token
+
+    async def get_by_user_id(self, user_id: int) -> Optional[models.Token]:
+        stmt = select(models.Token).filter(models.Token.user_id == user_id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
 
     async def get_by_access_token(self, access_token: str) -> Optional[models.Token]:
         stmt = select(models.Token).filter(models.Token.access_token == access_token)

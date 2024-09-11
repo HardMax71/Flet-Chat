@@ -32,22 +32,32 @@ async def login_for_access_token(
         )
         refresh_token, refresh_expire = create_refresh_token(data={"sub": user.username})
 
-        # Save tokens to database
-        token = schemas.TokenCreate(
-            access_token=access_token,
-            refresh_token=refresh_token,
-            token_type="bearer",
-            expires_at=access_expire,
-            user_id=user.id
-        )
-        await uow.tokens.create(token)
+        existing_token = await uow.tokens.get_by_user_id(user.id)
+
+        if existing_token:
+            # Update existing token
+            existing_token.access_token = access_token
+            existing_token.refresh_token = refresh_token
+            existing_token.expires_at = access_expire
+            await uow.tokens.update(existing_token)
+            token = existing_token
+        else:
+            # Create new token
+            token = schemas.TokenCreate(
+                access_token=access_token,
+                refresh_token=refresh_token,
+                token_type="bearer",
+                expires_at=access_expire,
+                user_id=user.id
+            )
+            token = await uow.tokens.create(token)
 
         return schemas.TokenResponse(
-            access_token=access_token,
-            refresh_token=refresh_token,
-            token_type="bearer",
-            expires_at=access_expire,
-            user_id=user.id
+            access_token=token.access_token,
+            refresh_token=token.refresh_token,
+            token_type=token.token_type,
+            expires_at=token.expires_at,
+            user_id=token.user_id
         )
 
 
