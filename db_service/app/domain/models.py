@@ -22,9 +22,11 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     is_active = Column(Boolean, default=True)
 
-    chats = relationship("Chat", secondary=chat_members, back_populates="members")
-    messages = relationship("Message", back_populates="user")
-    tokens = relationship("Token", back_populates="user")
+    chats = relationship("Chat", secondary=chat_members, back_populates="members", lazy="selectin")
+    messages = relationship("Message", back_populates="user", lazy="selectin")
+    tokens = relationship("Token", back_populates="user", lazy="selectin")
+    message_statuses = relationship("MessageStatus", back_populates="user", lazy="selectin")
+
 
 class Chat(Base):
     __tablename__ = "chats"
@@ -33,8 +35,8 @@ class Chat(Base):
     name = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    members = relationship("User", secondary=chat_members, back_populates="chats")
-    messages = relationship("Message", back_populates="chat")
+    members = relationship("User", secondary=chat_members, back_populates="chats", lazy="selectin")
+    messages = relationship("Message", back_populates="chat", lazy="selectin")
 
 
 class Message(Base):
@@ -48,8 +50,9 @@ class Message(Base):
     chat_id = Column(Integer, ForeignKey("chats.id"))
     user_id = Column(Integer, ForeignKey("users.id"))
 
-    chat = relationship("Chat", back_populates="messages")
-    user = relationship("User", back_populates="messages")
+    chat = relationship("Chat", back_populates="messages", lazy="selectin")
+    user = relationship("User", back_populates="messages", lazy="selectin")
+    statuses = relationship("MessageStatus", back_populates="message", lazy="selectin")
 
 
 class Token(Base):
@@ -62,4 +65,17 @@ class Token(Base):
     expires_at = Column(DateTime(timezone=True))
     user_id = Column(Integer, ForeignKey("users.id"))
 
-    user = relationship("User", back_populates="tokens")
+    user = relationship("User", back_populates="tokens", lazy="selectin")
+
+
+class MessageStatus(Base):
+    __tablename__ = "message_statuses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    message_id = Column(Integer, ForeignKey("messages.id"))
+    user_id = Column(Integer, ForeignKey("users.id"))
+    is_read = Column(Boolean, default=False)
+    read_at = Column(DateTime(timezone=True), nullable=True)
+
+    message = relationship("Message", back_populates="statuses", lazy="selectin")
+    user = relationship("User", back_populates="message_statuses", lazy="selectin")

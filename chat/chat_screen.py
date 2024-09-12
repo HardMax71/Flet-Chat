@@ -215,6 +215,7 @@ class ChatScreen(ft.UserControl):
                             color=ft.colors.GREY_500)
                 )
             else:
+                unread_messages = []
                 for message in reversed(response.data):
                     is_current_user = message['user']['id'] == self.current_user_id
                     message_color = ft.colors.BLUE_700 if is_current_user else ft.colors.GREY_200
@@ -232,6 +233,13 @@ class ChatScreen(ft.UserControl):
                         message_content = ft.Text(message['content'],
                                                   style=ft.TextThemeStyle.BODY_MEDIUM,
                                                   color=text_color)
+
+                        # Extract is_read status for the current user
+                        is_read = next((status['is_read'] for status in message['statuses'] if
+                                        status['user_id'] == self.current_user_id), False)
+
+                        if not is_read and not is_current_user:
+                            unread_messages.append(message['id'])
 
                     time_info = ft.Row(
                         [
@@ -275,10 +283,20 @@ class ChatScreen(ft.UserControl):
                     self.message_list.controls.append(
                         ft.Row([message_container], alignment=alignment)
                     )
+
+                if unread_messages:
+                    self.mark_messages_as_read(unread_messages)
+
             self.message_list.auto_scroll = True
             self.update()
         else:
             self.chat_app.show_error_dialog("Error Loading Messages", f"Failed to load messages: {response.error}")
+
+    def mark_messages_as_read(self, message_ids):
+        for message_id in message_ids:
+            response = self.chat_app.api_client.update_message_status(message_id, {"is_read": True})
+            if not response.success:
+                print(f"Failed to mark message {message_id} as read: {response.error}")
 
     def show_message_options(self, e, message, is_current_user):
         options = []

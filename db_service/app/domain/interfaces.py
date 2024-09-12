@@ -69,6 +69,10 @@ class AbstractChatRepository(ABC):
     async def start_chat(self, current_user_id: int, other_user_id: int) -> Optional[schemas.Chat]:
         pass
 
+    @abstractmethod
+    async def get_unread_messages_count(self, chat_id: int, user_id: int) -> int:
+        pass
+
 
 class AbstractMessageRepository(ABC):
     @abstractmethod
@@ -95,6 +99,11 @@ class AbstractMessageRepository(ABC):
 
     @abstractmethod
     async def delete(self, message_id: int, user_id: int) -> bool:
+        pass
+
+    @abstractmethod
+    async def update_message_status(self, message_id: int, user_id: int, status_update: schemas.MessageStatusUpdate) -> \
+            Optional[schemas.Message]:
         pass
 
 

@@ -116,3 +116,13 @@ async def remove_chat_member(
         if not removed:
             raise HTTPException(status_code=404, detail="Chat or user not found")
     return {"message": "Member removed from chat successfully"}
+
+
+@router.get("/chats/{chat_id}/unread_count", response_model=int)
+async def get_unread_messages_count(
+    chat_id: int,
+    uow: AbstractUnitOfWork = Depends(get_uow),
+    current_user: schemas.User = Depends(get_current_active_user)
+):
+    async with uow:
+        return await uow.chats.get_unread_messages_count(chat_id, current_user.id)

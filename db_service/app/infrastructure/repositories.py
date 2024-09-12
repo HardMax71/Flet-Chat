@@ -183,6 +183,17 @@ class SQLAlchemyChatRepository(AbstractChatRepository):
         await self.session.commit()
         return new_chat
 
+    async def get_unread_messages_count(self, chat_id: int, user_id: int) -> int:
+        stmt = select(func.count()).select_from(models.Message).join(
+            models.MessageStatus,
+            (models.Message.id == models.MessageStatus.message_id) &
+            (models.MessageStatus.user_id == user_id)
+        ).filter(
+            models.Message.chat_id == chat_id,
+            models.MessageStatus.is_read == False
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one()
 
 class SQLAlchemyMessageRepository(AbstractMessageRepository):
     def __init__(self, session: AsyncSession):
@@ -219,9 +230,48 @@ class SQLAlchemyMessageRepository(AbstractMessageRepository):
     async def create(self, message: schemas.MessageCreate, user_id: int) -> models.Message:
         db_message = models.Message(content=message.content, chat_id=message.chat_id, user_id=user_id)
         self.session.add(db_message)
+        await self.session.flush()
+
+        # Fetch the chat with members eagerly loaded
+        stmt = select(models.Chat).options(joinedload(models.Chat.members)).filter(models.Chat.id == message.chat_id)
+        result = await self.session.execute(stmt)
+        chat = result.unique().scalar_one()
+
+        for member in chat.members:
+            status = models.MessageStatus(message_id=db_message.id, user_id=member.id, is_read=(member.id == user_id))
+            self.session.add(status)
+
         await self.session.commit()
-        await self.session.refresh(db_message, ['user'])
+        await self.session.refresh(db_message)
         return db_message
+
+    async def update_message_status(self, message_id: int, user_id: int, status_update: schemas.MessageStatusUpdate) -> Optional[models.Message]:
+        # First, update the message status
+        stmt = select(models.MessageStatus).filter(
+            models.MessageStatus.message_id == message_id,
+            models.MessageStatus.user_id == user_id
+        )
+        result = await self.session.execute(stmt)
+        db_status = result.scalar_one_or_none()
+
+        if not db_status:
+            return None
+
+        db_status.is_read = status_update.is_read
+        if status_update.is_read:
+            db_status.read_at = func.now()
+
+        await self.session.commit()
+
+        # Then, fetch the updated message separately
+        stmt = select(models.Message).options(
+            joinedload(models.Message.user),
+            joinedload(models.Message.statuses)
+        ).filter(models.Message.id == message_id)
+        result = await self.session.execute(stmt)
+        message = result.unique().scalar_one_or_none()
+
+        return message
 
     async def update(self, message_id: int, message_update: schemas.MessageUpdate, user_id: int) -> Optional[
         models.Message]:

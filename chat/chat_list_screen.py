@@ -70,6 +70,22 @@ class ChatListScreen(ft.UserControl):
                         color=ft.colors.GREY_700
                     )
 
+                    # Get unread messages count
+                    unread_count_response = self.chat_app.api_client.get_unread_messages_count(chat['id'])
+                    unread_count = unread_count_response.data if unread_count_response.success else 0
+
+                    # Create unread messages indicator
+                    unread_indicator = ft.Container(
+                        content=ft.Text(str(unread_count), color=ft.colors.WHITE, size=12),
+                        bgcolor=ft.colors.RED_500,
+                        border_radius=ft.border_radius.all(10),
+                        padding=ft.padding.all(5),
+                        visible=unread_count > 0,
+                        width=30,
+                        height=30,
+                        alignment=ft.alignment.center,
+                    )
+
                     list_tile = ft.ListTile(
                         title=ft.Row(
                             [
@@ -79,6 +95,7 @@ class ChatListScreen(ft.UserControl):
                                     spacing=5,
                                     expand=True
                                 ),
+                                unread_indicator,
                                 ft.IconButton(
                                     icon=ft.icons.EDIT,
                                     on_click=lambda _, c=chat: self.edit_chat(c),
@@ -99,6 +116,7 @@ class ChatListScreen(ft.UserControl):
             self.update()
         else:
             self.chat_app.show_error_dialog("Error Loading Chats", f"Failed to load chats: {response.error}")
+
 
     def edit_chat(self, chat):
         def update_chat_name(e):

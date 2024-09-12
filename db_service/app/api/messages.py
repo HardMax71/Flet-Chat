@@ -23,6 +23,8 @@ async def create_message(
 
         db_message = await uow.messages.create(message, current_user.id)
         return db_message
+
+
 @router.get("/messages/{chat_id}", response_model=List[schemas.Message])
 async def read_messages(
         chat_id: int,
@@ -62,3 +64,17 @@ async def delete_message(
         if not deleted:
             raise HTTPException(status_code=404, detail="Message not found or not authorized")
     return {"message": "Message deleted successfully"}
+
+
+@router.put("/messages/{message_id}/status", response_model=schemas.Message)
+async def update_message_status(
+        message_id: int,
+        status_update: schemas.MessageStatusUpdate,
+        uow: AbstractUnitOfWork = Depends(get_uow),
+        current_user: schemas.User = Depends(get_current_active_user)
+):
+    async with uow:
+        updated_message = await uow.messages.update_message_status(message_id, current_user.id, status_update)
+        if not updated_message:
+            raise HTTPException(status_code=404, detail="Message not found")
+        return updated_message

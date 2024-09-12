@@ -67,6 +67,15 @@ class MessageCreate(MessageBase):
 class MessageUpdate(BaseModel):
     content: str
 
+class MessageStatus(BaseModel):
+    user_id: int
+    is_read: bool
+    read_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+class MessageStatusUpdate(BaseModel):
+    is_read: bool = True
 
 class Message(MessageBase):
     id: int
@@ -76,6 +85,7 @@ class Message(MessageBase):
     chat_id: int
     user_id: int
     user: UserBasic
+    statuses: List[MessageStatus] = []
 
     model_config = ConfigDict(from_attributes=True)
 

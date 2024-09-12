@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-
+import pytz
 import requests
 
 
@@ -45,7 +45,7 @@ class ApiClient:
         url = f"{self.base_url}{endpoint}"
 
         if auth_required:
-            current_time = datetime.utcnow()
+            current_time = datetime.utcnow().replace(tzinfo=pytz.UTC)
             if not self.access_token or (
                     self.token_expiry and current_time >= self.token_expiry - timedelta(minutes=5)):
                 if not self._refresh_token():
@@ -73,7 +73,7 @@ class ApiClient:
         if response.success:
             self.access_token = response.data["access_token"]
             self.refresh_token = response.data["refresh_token"]
-            self.token_expiry = datetime.fromisoformat(response.data["expires_at"])
+            self.token_expiry = datetime.fromisoformat(response.data["expires_at"]).replace(tzinfo=pytz.UTC)
         return response
 
     def register(self, username, email, password):
@@ -147,3 +147,9 @@ class ApiClient:
             self.refresh_token = None
             self.token_expiry = None
         return response
+
+    def get_unread_messages_count(self, chat_id: int):
+        return self._request("GET", f"/chats/{chat_id}/unread_count")
+
+    def update_message_status(self, message_id: int, status_update: dict):
+        return self._request("PUT", f"/messages/{message_id}/status", json=status_update)
