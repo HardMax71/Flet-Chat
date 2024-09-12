@@ -237,8 +237,16 @@ class SQLAlchemyMessageRepository(AbstractMessageRepository):
         result = await self.session.execute(stmt)
         chat = result.unique().scalar_one()
 
+        current_time = func.now()
+
         for member in chat.members:
-            status = models.MessageStatus(message_id=db_message.id, user_id=member.id, is_read=(member.id == user_id))
+            is_author = member.id == user_id
+            status = models.MessageStatus(
+                message_id=db_message.id,
+                user_id=member.id,
+                is_read=is_author,
+                read_at=current_time if is_author else None
+            )
             self.session.add(status)
 
         await self.session.commit()

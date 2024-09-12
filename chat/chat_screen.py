@@ -274,10 +274,8 @@ class ChatScreen(ft.UserControl):
                             padding=10,
                             width=300,
                         ),
-                        on_long_press_start=lambda e, msg=message,
-                                                   is_current=is_current_user: self.show_message_options(e=e,
-                                                                                                         message=msg,
-                                                                                                         is_current_user=is_current)
+                        on_long_press_start=lambda e, msg=message, is_current=is_current_user:
+                        self.show_message_options(e=e, message=msg, is_current_user=is_current)
                     )
 
                     self.message_list.controls.append(
@@ -299,10 +297,51 @@ class ChatScreen(ft.UserControl):
                 print(f"Failed to mark message {message_id} as read: {response.error}")
 
     def show_message_options(self, e, message, is_current_user):
+        def close_dialog(e):
+            options_dialog.open = False
+            self.page.dialog = None
+            self.page.update()
+
         options = []
+
+        # Add read status information
+        read_status_title = ft.Text("Read by:", style=ft.TextThemeStyle.TITLE_SMALL, weight=ft.FontWeight.BOLD)
+
+        read_status_list = ft.ListView(
+            spacing=5,
+            expand=True,
+        )
+
+        for status in message['statuses']:
+            if status['is_read']:
+                read_time = datetime.fromisoformat(status['read_at']) if status['read_at'] else None
+                formatted_time = read_time.strftime("%Y-%m-%d %H:%M:%S") if read_time else "Unknown"
+                reader_name = next(
+                    (member['username'] for member in self.chat_app.api_client.get_chat(self.chat_id).data['members'] if
+                     member['id'] == status['user_id']), "Unknown")
+                read_status_list.controls.append(
+                    ft.Text(f"{reader_name}: {formatted_time}", style=ft.TextThemeStyle.BODY_SMALL)
+                )
+
+        if not any(status['is_read'] for status in message['statuses']):
+            read_status_list.controls.append(
+                ft.Text("No one has read this message yet.", style=ft.TextThemeStyle.BODY_SMALL)
+            )
+
+        read_status_container = ft.Container(
+            content=ft.Column([
+                read_status_title,
+                read_status_list
+            ],
+                expand=True),
+            padding=10
+        )
+
+        options.append(read_status_container)
 
         if is_current_user and not message['is_deleted']:
             options.extend([
+                ft.Divider(),
                 ft.ListTile(
                     leading=ft.Icon(ft.icons.EDIT),
                     title=ft.Text("Edit", style=ft.TextThemeStyle.TITLE_MEDIUM),
@@ -317,15 +356,19 @@ class ChatScreen(ft.UserControl):
                 ),
             ])
 
-        if not options:
-            return  # No options to show
-
         options_dialog = ft.AlertDialog(
-            content=ft.Column(options, tight=True),
+            title=ft.Text("Message Options", style=ft.TextThemeStyle.HEADLINE_SMALL),
+            content=ft.Container(
+                content=ft.Column(options, tight=True, scroll=ft.ScrollMode.AUTO),
+                expand=True,
+            ),
+            actions=[
+                ft.TextButton("Close", on_click=close_dialog),
+            ],
         )
 
-        options_dialog.open = True
         self.page.dialog = options_dialog
+        options_dialog.open = True
         self.page.update()
 
     def edit_message(self, message):
@@ -379,4 +422,5 @@ class ChatScreen(ft.UserControl):
 
     def close_dialog(self, dialog):
         dialog.open = False
+        self.page.dialog = None
         self.page.update()
