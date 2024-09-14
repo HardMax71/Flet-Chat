@@ -39,7 +39,19 @@ class ChatListScreen(ft.UserControl):
         )
 
         self.chat_list = ft.ListView(spacing=10, expand=True)
-
+        self.loading_container = ft.Container(
+            content=ft.Column(
+                [
+                    ft.ProgressRing(),
+                    ft.Text("Chats are being loaded...", style=ft.TextThemeStyle.BODY_MEDIUM)
+                ],
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                spacing=10
+            ),
+            alignment=ft.alignment.center,
+            expand=True,
+            visible=False
+        )
 
     def build(self):
         return ft.Column(
@@ -54,15 +66,21 @@ class ChatListScreen(ft.UserControl):
                 ),
                 ft.Row([self.search_input, self.search_button]),
                 self.search_results,
-                self.chat_list,
-                self.loading_indicator,
+                ft.Stack(
+                    [
+                        self.chat_list,
+                        self.loading_container
+                    ],
+                    expand=True
+                )
             ],
             expand=True,
             spacing=20,
         )
 
     def load_chats(self, e=None):
-        self.loading_indicator.visible = True
+        self.loading_container.visible = True
+        self.chat_list.visible = False
         self.update()
 
         response = self.chat_app.api_client.get_chats()
@@ -153,7 +171,8 @@ class ChatListScreen(ft.UserControl):
             self.chat_app.show_error_dialog("Error Loading Chats", f"Failed to load chats: {response.error}")
             self.logger.error(f"Failed to load chats: {response.error}")
 
-        self.loading_indicator.visible = False
+        self.loading_container.visible = False
+        self.chat_list.visible = True
         self.update()
 
     def subscribe_to_unread_count(self, chat_id):

@@ -27,7 +27,7 @@ async def create_message(
 
         # Publish an event to Redis
         channel_name = f"chat:{message.chat_id}"
-        message_data = schemas.Message.from_orm(db_message).model_dump_json()
+        message_data = schemas.Message.model_validate(db_message).model_dump_json()
         redis_client = await get_redis_client()
         await redis_client.publish(channel_name, message_data)  # Async publish
 
@@ -112,7 +112,7 @@ async def update_message_status(
 
         # Publish an event to Redis asynchronously
         channel_name = f"chat:{updated_message.chat_id}:status"
-        status_data = schemas.MessageStatus.from_orm(message_status).model_dump_json()
+        status_data = schemas.MessageStatus.model_validate(message_status).model_dump_json()
         try:
             redis_client = await get_redis_client()
             await redis_client.publish(channel_name, status_data)

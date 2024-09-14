@@ -41,7 +41,7 @@ jobs:
         REDIS_HOST: localhost
         REDIS_PORT: 6379
       run: |
-        pytest --cov=app --cov-report=xml db_service/app/tests
+        pytest --cov=app --cov-report=xml chat_service/app/tests
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3

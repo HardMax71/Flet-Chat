@@ -21,14 +21,14 @@ services:
       timeout: 5s
       retries: 5
 
-  db_service:
+  chat_service:
     build:
-      context: ./db_service
+      context: chat_service
       args:
         PYTHON_VERSION: ${PYTHON_VERSION}
     volumes:
-      - ./db_service:/app
-      - ./db_service/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./chat_service:/app
+      - ./chat_service/init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "${APP_PORT}:${APP_PORT}"
     environment:
