@@ -1,5 +1,6 @@
 import flet as ft
 
+
 class LoginScreen(ft.UserControl):
     def __init__(self, chat_app):
         super().__init__()

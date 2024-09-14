@@ -20,7 +20,7 @@ class ChatListScreen(ft.UserControl):
         if not self.logger.handlers:
             self.logger.addHandler(handler)
 
-    def build(self):
+        # GUI elements
         self.loading_indicator = ft.ProgressRing(visible=False)
         self.search_input = ft.TextField(
             hint_text="Search users",
@@ -40,6 +40,8 @@ class ChatListScreen(ft.UserControl):
 
         self.chat_list = ft.ListView(spacing=10, expand=True)
 
+
+    def build(self):
         return ft.Column(
             [
                 ft.Row(
@@ -167,7 +169,6 @@ class ChatListScreen(ft.UserControl):
             self.chat_app.api_client.unsubscribe_from_channel(channel_name)
             del self.chat_subscriptions[channel_name]
             self.logger.info(f"Unsubscribed from unread count channel '{channel_name}' for chat ID {chat_id}")
-
 
     def update_unread_count(self, data):
         """

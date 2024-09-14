@@ -5,6 +5,7 @@ from datetime import datetime
 
 import flet as ft
 
+
 class ChatScreen(ft.UserControl):
     def __init__(self, chat_app, chat_id):
         super().__init__()
@@ -22,7 +23,7 @@ class ChatScreen(ft.UserControl):
         if not self.logger.handlers:
             self.logger.addHandler(handler)
 
-    def build(self):
+        # Initialize UI components
         self.chat_name = ft.Text("", style=ft.TextThemeStyle.HEADLINE_MEDIUM)
         self.message_list = ft.ListView(spacing=10, expand=True, auto_scroll=True)
         self.message_input = ft.TextField(hint_text="Type a message...",
@@ -30,6 +31,7 @@ class ChatScreen(ft.UserControl):
                                           multiline=True,
                                           min_lines=1, max_lines=5)
 
+    def build(self):
         return ft.Column(
             [
                 ft.Row(
@@ -227,7 +229,6 @@ class ChatScreen(ft.UserControl):
             self.logger.error(f"Failed to decode message: {data}")
         except Exception as e:
             self.logger.error(f"Error processing new message: {str(e)}")
-
 
     def go_back(self, e):
         """

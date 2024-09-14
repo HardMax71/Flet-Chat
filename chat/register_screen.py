@@ -6,11 +6,12 @@ class RegisterScreen(ft.UserControl):
         super().__init__()
         self.chat_app = chat_app
 
-    def build(self):
+        # GUI components
         self.username = ft.TextField(label="Username")
         self.email = ft.TextField(label="Email")
         self.password = ft.TextField(label="Password", password=True, can_reveal_password=True)
 
+    def build(self):
         return ft.Container(
             border_radius=10,
             padding=30,

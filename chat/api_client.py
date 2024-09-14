@@ -144,6 +144,7 @@ class ApiClient:
         Makes an HTTP request to the specified endpoint with optional authentication.
         """
         url = f"{self.base_url}{endpoint}"
+        headers = kwargs.get('headers', {})
 
         if auth_required:
             current_time = datetime.utcnow().replace(tzinfo=pytz.UTC)
@@ -153,7 +154,6 @@ class ApiClient:
                 if not self._refresh_token():
                     return ApiResponse(False, error="Failed to refresh token. Please log in again.")
 
-            headers = kwargs.get('headers', {})
             headers['Authorization'] = f"Bearer {self.access_token}"
             kwargs['headers'] = headers
 

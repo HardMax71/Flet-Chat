@@ -1,12 +1,13 @@
 import os
 
 import flet as ft
-from .login_screen import LoginScreen
-from .register_screen import RegisterScreen
+
+from .api_client import ApiClient
 from .chat_list_screen import ChatListScreen
 from .chat_screen import ChatScreen
+from .login_screen import LoginScreen
+from .register_screen import RegisterScreen
 from .user_profile_screen import UserProfileScreen
-from .api_client import ApiClient
 
 
 class ChatApp:
