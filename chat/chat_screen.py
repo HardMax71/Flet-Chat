@@ -1,14 +1,26 @@
+import json
+import logging
+import threading
 from datetime import datetime
 
 import flet as ft
-
 
 class ChatScreen(ft.UserControl):
     def __init__(self, chat_app, chat_id):
         super().__init__()
         self.chat_app = chat_app
         self.chat_id = chat_id
-        self.current_user_id = self.chat_app.api_client.get_current_user().data['id']
+        self.current_user_id = None
+        self.chat_subscription = None
+
+        # Configure logging
+        self.logger = logging.getLogger('ChatScreen')
+        self.logger.setLevel(logging.INFO)
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter('[%(asctime)s] %(levelname)s:%(name)s: %(message)s')
+        handler.setFormatter(formatter)
+        if not self.logger.handlers:
+            self.logger.addHandler(handler)
 
     def build(self):
         self.chat_name = ft.Text("", style=ft.TextThemeStyle.HEADLINE_MEDIUM)
@@ -177,34 +189,88 @@ class ChatScreen(ft.UserControl):
             self.chat_app.show_error_dialog("Error Loading Members", f"Failed to load chat members: {response.error}")
 
     def did_mount(self):
+        """
+        Called when the control is added to the page. Initializes the chat screen.
+        """
+        self.logger.info(f"ChatScreen for chat ID {self.chat_id} mounted.")
+        self.current_user_id = self.chat_app.api_client.get_current_user().data['id']
         self.load_chat()
         self.load_messages()
+        # Subscribe to new messages
+        channel_name = f"chat:{self.chat_id}"
+        self.chat_subscription = self.chat_app.api_client.subscribe_to_channel(channel_name, self.process_new_message)
+        self.logger.info(f"Subscribed to channel {channel_name} for new messages.")
+
+    def will_unmount(self):
+        """
+        Called when the control is about to be removed from the page. Cleans up subscriptions.
+        """
+        self.logger.info(f"ChatScreen for chat ID {self.chat_id} will unmount.")
+        # Unsubscribe from the Redis channel
+        if self.chat_subscription:
+            self.chat_app.api_client.unsubscribe_from_channel(self.chat_subscription)
+            self.logger.info(f"Unsubscribed from channel {self.chat_subscription}.")
+
+    def process_new_message(self, data):
+        """
+        Processes new messages received from Redis.
+        """
+        try:
+            message = json.loads(data)
+            self.logger.info(f"Received new message for chat ID {self.chat_id}: {message}")
+            if message['user']['id'] != self.current_user_id:
+                self.add_message_to_list(message)
+                self.update()
+                # Mark the new message as read
+                threading.Thread(target=self.mark_message_as_read, args=(message['id'],), daemon=True).start()
+        except json.JSONDecodeError:
+            self.logger.error(f"Failed to decode message: {data}")
+        except Exception as e:
+            self.logger.error(f"Error processing new message: {str(e)}")
+
 
     def go_back(self, e):
+        """
+        Navigates back to the chat list screen.
+        """
+        self.logger.info(f"Navigating back to chat list from chat ID {self.chat_id}")
         self.chat_app.show_chat_list()
 
     def load_chat(self):
+        """
+        Loads chat details and updates the chat name.
+        """
+        self.logger.info(f"Loading chat details for chat ID {self.chat_id}")
         response = self.chat_app.api_client.get_chat(self.chat_id)
         if response.success:
             self.chat_name.value = response.data['name']
             self.update()
+            self.logger.info(f"Chat details loaded successfully for chat ID {self.chat_id}")
         else:
             self.chat_app.show_error_dialog("Error Loading Chat", f"Failed to load chat: {response.error}")
+            self.logger.error(f"Failed to load chat details for chat ID {self.chat_id}: {response.error}")
 
     def send_message(self, e):
+        """
+        Sends a new message and adds it to the message list.
+        """
         if self.message_input.value:
+            self.logger.info(f"Sending new message in chat ID {self.chat_id}")
             response = self.chat_app.api_client.send_message(self.chat_id, self.message_input.value)
             if response.success:
                 self.message_input.value = ""
-                self.load_messages()
+                self.add_message_to_list(response.data)
+                self.update()
+                self.logger.info(f"Message sent successfully in chat ID {self.chat_id}")
             else:
                 self.chat_app.show_error_dialog("Error Sending Message", f"Failed to send message: {response.error}")
+                self.logger.error(f"Failed to send message in chat ID {self.chat_id}: {response.error}")
 
     def load_messages(self):
-        if self.current_user_id is None:
-            self.chat_app.show_error_dialog("Error", "Current user data not loaded")
-            return
-
+        """
+        Loads messages for the chat and marks unread messages as read.
+        """
+        self.logger.info(f"Loading messages for chat ID {self.chat_id}")
         response = self.chat_app.api_client.get_messages(self.chat_id)
         if response.success:
             self.message_list.controls.clear()
@@ -214,89 +280,117 @@ class ChatScreen(ft.UserControl):
                             style=ft.TextThemeStyle.BODY_LARGE,
                             color=ft.colors.GREY_500)
                 )
+                self.logger.info(f"No messages found for chat ID {self.chat_id}")
             else:
-                unread_messages = []
+                unread_message_ids = []
                 for message in reversed(response.data):
-                    is_current_user = message['user']['id'] == self.current_user_id
-                    message_color = ft.colors.BLUE_700 if is_current_user else ft.colors.GREY_200
-                    text_color = ft.colors.WHITE if is_current_user else ft.colors.BLACK
-                    alignment = ft.MainAxisAlignment.END if is_current_user else ft.MainAxisAlignment.START
+                    self.add_message_to_list(message)
+                    # Check if the message is unread by the current user
+                    if not message['is_deleted'] and not any(status['is_read'] for status in message['statuses'] if
+                                                             status['user_id'] == self.current_user_id):
+                        unread_message_ids.append(message['id'])
 
-                    message_time = datetime.fromisoformat(message['created_at'])
-                    formatted_time = message_time.strftime("%H:%M")
+                self.logger.info(f"Loaded {len(response.data)} messages for chat ID {self.chat_id}")
 
-                    if message['is_deleted']:
-                        message_content = ft.Text("<This message has been deleted>",
-                                                  style=ft.TextThemeStyle.BODY_MEDIUM,
-                                                  color=ft.colors.GREY_400)
-                    else:
-                        message_content = ft.Text(message['content'],
-                                                  style=ft.TextThemeStyle.BODY_MEDIUM,
-                                                  color=text_color)
-
-                        # Extract is_read status for the current user
-                        is_read = next((status['is_read'] for status in message['statuses'] if
-                                        status['user_id'] == self.current_user_id), False)
-
-                        if not is_read and not is_current_user:
-                            unread_messages.append(message['id'])
-
-                    time_info = ft.Row(
-                        [
-                            ft.Text(formatted_time,
-                                    style=ft.TextThemeStyle.BODY_SMALL,
-                                    color=ft.colors.GREY_400 if is_current_user else ft.colors.GREY_700)
-                        ],
-                        spacing=5
-                    )
-
-                    if message.get('updated_at') and message['updated_at'] != message['created_at']:
-                        edit_time = datetime.fromisoformat(message['updated_at'])
-                        formatted_edit_time = edit_time.strftime("%H:%M")
-                        time_info.controls.append(
-                            ft.Text(f"(edited at {formatted_edit_time})",
-                                    style=ft.TextThemeStyle.BODY_SMALL,
-                                    italic=True,
-                                    color=ft.colors.GREY_400 if is_current_user else ft.colors.GREY_700)
-                        )
-
-                    message_container = ft.GestureDetector(
-                        content=ft.Container(
-                            content=ft.Column([
-                                ft.Text(message['user']['username'],
-                                        style=ft.TextThemeStyle.BODY_SMALL,
-                                        color=text_color),
-                                message_content,
-                                time_info
-                            ]),
-                            bgcolor=message_color,
-                            border_radius=ft.border_radius.all(10),
-                            padding=10,
-                            width=300,
-                        ),
-                        on_long_press_start=lambda e, msg=message, is_current=is_current_user:
-                        self.show_message_options(e=e, message=msg, is_current_user=is_current)
-                    )
-
-                    self.message_list.controls.append(
-                        ft.Row([message_container], alignment=alignment)
-                    )
-
-                if unread_messages:
-                    self.mark_messages_as_read(unread_messages)
+                # Mark unread messages as read
+                if unread_message_ids:
+                    self.logger.info(f"Marking {len(unread_message_ids)} messages as read for chat ID {self.chat_id}")
+                    threading.Thread(target=self.mark_messages_as_read, args=(unread_message_ids,), daemon=True).start()
 
             self.message_list.auto_scroll = True
             self.update()
         else:
             self.chat_app.show_error_dialog("Error Loading Messages", f"Failed to load messages: {response.error}")
+            self.logger.error(f"Failed to load messages for chat ID {self.chat_id}: {response.error}")
+
+    def add_message_to_list(self, message):
+        """
+        Adds a single message to the message list UI.
+        """
+        is_current_user = message['user']['id'] == self.current_user_id
+        message_color = ft.colors.BLUE_700 if is_current_user else ft.colors.GREY_200
+        text_color = ft.colors.WHITE if is_current_user else ft.colors.BLACK
+        alignment = ft.MainAxisAlignment.END if is_current_user else ft.MainAxisAlignment.START
+
+        message_time = datetime.fromisoformat(message['created_at'])
+        formatted_time = message_time.strftime("%H:%M")
+
+        if message['is_deleted']:
+            message_content = ft.Text("<This message has been deleted>",
+                                      style=ft.TextThemeStyle.BODY_MEDIUM,
+                                      color=ft.colors.GREY_400)
+        else:
+            message_content = ft.Text(message['content'],
+                                      style=ft.TextThemeStyle.BODY_MEDIUM,
+                                      color=text_color)
+
+        time_info = ft.Row(
+            [
+                ft.Text(formatted_time,
+                        style=ft.TextThemeStyle.BODY_SMALL,
+                        color=ft.colors.GREY_400 if is_current_user else ft.colors.GREY_700)
+            ],
+            spacing=5
+        )
+
+        if message.get('updated_at') and message['updated_at'] != message['created_at']:
+            edit_time = datetime.fromisoformat(message['updated_at'])
+            formatted_edit_time = edit_time.strftime("%H:%M")
+            time_info.controls.append(
+                ft.Text(f"(edited at {formatted_edit_time})",
+                        style=ft.TextThemeStyle.BODY_SMALL,
+                        italic=True,
+                        color=ft.colors.GREY_400 if is_current_user else ft.colors.GREY_700)
+            )
+
+        message_container = ft.GestureDetector(
+            content=ft.Container(
+                content=ft.Column([
+                    ft.Text(message['user']['username'],
+                            style=ft.TextThemeStyle.BODY_SMALL,
+                            color=text_color),
+                    message_content,
+                    time_info
+                ]),
+                bgcolor=message_color,
+                border_radius=ft.border_radius.all(10),
+                padding=10,
+                width=300,
+            ),
+            on_long_press_start=lambda e: self.show_message_options(e, message, is_current_user),
+        )
+
+        self.message_list.controls.append(
+            ft.Row([message_container], alignment=alignment)
+        )
+
+        self.logger.info(f"Added message (ID: {message['id']}) to the message list for chat ID {self.chat_id}")
+
+    def mark_message_as_read(self, message_id):
+        """
+        Marks a single message as read.
+        """
+        self.logger.info(f"Marking message ID {message_id} as read")
+        response = self.chat_app.api_client.update_message_status(message_id, {"is_read": True})
+        if not response.success:
+            self.logger.error(f"Failed to mark message {message_id} as read: {response.error}")
 
     def mark_messages_as_read(self, message_ids):
+        """
+        Marks multiple messages as read.
+        """
+        self.logger.info(f"Marking {len(message_ids)} messages as read")
         for message_id in message_ids:
-            response = self.chat_app.api_client.update_message_status(message_id, {"is_read": True})
-            if not response.success:
-                print(f"Failed to mark message {message_id} as read: {response.error}")
+            self.mark_message_as_read(message_id)
 
     def show_message_options(self, e, message, is_current_user):
+        # Refresh the message status before showing options
+        updated_message = (self.chat_app
+        .api_client
+        .get_messages(self.chat_id,
+                      limit=1,
+                      content=message['content']).data[0])
+
         def close_dialog(e):
             options_dialog.open = False
             self.page.dialog = None
@@ -312,7 +406,7 @@ class ChatScreen(ft.UserControl):
             expand=True,
         )
 
-        for status in message['statuses']:
+        for status in updated_message['statuses']:
             if status['is_read']:
                 read_time = datetime.fromisoformat(status['read_at']) if status['read_at'] else None
                 formatted_time = read_time.strftime("%Y-%m-%d %H:%M:%S") if read_time else "Unknown"
@@ -323,7 +417,7 @@ class ChatScreen(ft.UserControl):
                     ft.Text(f"{reader_name}: {formatted_time}", style=ft.TextThemeStyle.BODY_SMALL)
                 )
 
-        if not any(status['is_read'] for status in message['statuses']):
+        if not any(status['is_read'] for status in updated_message['statuses']):
             read_status_list.controls.append(
                 ft.Text("No one has read this message yet.", style=ft.TextThemeStyle.BODY_SMALL)
             )

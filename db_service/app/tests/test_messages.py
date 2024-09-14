@@ -4,7 +4,7 @@ from httpx import AsyncClient
 pytestmark = pytest.mark.asyncio
 
 
-async def test_create_message(client: AsyncClient, auth_header):
+async def test_create_message(client: AsyncClient, auth_header, mock_redis):
     # Create a chat first
     chat_response = await client.post(
         "/api/v1/chats/",
@@ -37,7 +37,7 @@ async def test_create_message_invalid_chat(client: AsyncClient, auth_header):
     assert response.status_code == 404
 
 
-async def test_get_messages(client: AsyncClient, auth_header):
+async def test_get_messages(client: AsyncClient, auth_header, mock_redis):
     # Create a chat and multiple messages first
     chat_response = await client.post(
         "/api/v1/chats/",
@@ -65,7 +65,7 @@ async def test_get_messages(client: AsyncClient, auth_header):
         assert "user" in msg
 
 
-async def test_get_messages_with_content_filter(client: AsyncClient, auth_header):
+async def test_get_messages_with_content_filter(client: AsyncClient, auth_header, mock_redis):
     # Create a chat and multiple messages first
     chat_response = await client.post(
         "/api/v1/chats/",
@@ -128,7 +128,7 @@ async def test_update_nonexistent_message(client: AsyncClient, auth_header):
     assert response.status_code == 404
 
 
-async def test_delete_message(client: AsyncClient, auth_header):
+async def test_delete_message(client: AsyncClient, auth_header, mock_redis):
     # Create a chat and a message first
     chat_response = await client.post(
         "/api/v1/chats/",
@@ -161,7 +161,7 @@ async def test_delete_nonexistent_message(client: AsyncClient, auth_header):
     assert response.status_code == 404
 
 
-async def test_get_messages_pagination(client: AsyncClient, auth_header):
+async def test_get_messages_pagination(client: AsyncClient, auth_header, mock_redis):
     # Create a chat and multiple messages first
     chat_response = await client.post(
         "/api/v1/chats/",

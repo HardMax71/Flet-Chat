@@ -7,9 +7,11 @@ from app.domain import models
 from app.infrastructure.database import Base, get_session
 from app.infrastructure.security import get_password_hash
 from app.main import app
+from fakeredis import aioredis
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
+from app.infrastructure import redis_config
 
 SQLALCHEMY_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
@@ -76,3 +78,23 @@ async def auth_header(client, test_user):
     )
     access_token = response.json()["access_token"]
     return {"Authorization": f"Bearer {access_token}"}
+
+
+@pytest.fixture(scope="function")
+async def mock_redis():
+    fake_redis = aioredis.FakeRedis()
+    original_redis = redis_config.redis_client
+    redis_config.redis_client = fake_redis
+    yield fake_redis
+    redis_config.redis_client = original_redis
+
+
+@pytest.fixture(autouse=True)
+def mock_redis_client(mock_redis):
+    async def get_mock_redis_client():
+        return mock_redis
+
+    original_get_redis_client = redis_config.get_redis_client
+    redis_config.get_redis_client = get_mock_redis_client
+    yield
+    redis_config.get_redis_client = original_get_redis_client

@@ -1,12 +1,15 @@
 # app/api/messages.py
+import json
 from typing import List, Optional
 
 from app.api.dependencies import get_uow, get_current_active_user
 from app.domain import schemas
+from app.infrastructure.redis_config import get_redis_client
 from app.infrastructure.unit_of_work import AbstractUnitOfWork
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 router = APIRouter()
+
 
 
 @router.post("/messages/", response_model=schemas.Message)
@@ -16,14 +19,32 @@ async def create_message(
         current_user: schemas.User = Depends(get_current_active_user)
 ):
     async with uow:
-        # Check if the chat exists and the user is a member
         chat_exists = await uow.messages.check_chat_exists_and_user_is_member(message.chat_id, current_user.id)
         if not chat_exists:
             raise HTTPException(status_code=404, detail="Chat not found or user is not a member")
 
         db_message = await uow.messages.create(message, current_user.id)
-        return db_message
 
+        # Publish an event to Redis
+        channel_name = f"chat:{message.chat_id}"
+        message_data = schemas.Message.from_orm(db_message).model_dump_json()
+        redis_client = await get_redis_client()
+        await redis_client.publish(channel_name, message_data)  # Async publish
+
+        # Update unread count for other chat members
+        chat_members = await uow.chats.get_chat_members(message.chat_id)
+        for member in chat_members:
+            if member.id != current_user.id:
+                unread_count = await uow.chats.get_unread_messages_count(message.chat_id, member.id)
+                unread_count_channel = f"chat:{message.chat_id}:unread_count:{member.id}"
+                unread_count_data = json.dumps({
+                    "chat_id": message.chat_id,
+                    "unread_count": unread_count,
+                    "user_id": member.id
+                })
+                await redis_client.publish(unread_count_channel, unread_count_data)
+
+        return db_message
 
 @router.get("/messages/{chat_id}", response_model=List[schemas.Message])
 async def read_messages(
@@ -74,7 +95,42 @@ async def update_message_status(
         current_user: schemas.User = Depends(get_current_active_user)
 ):
     async with uow:
-        updated_message = await uow.messages.update_message_status(message_id, current_user.id, status_update)
+        # Update the message status in the database
+        updated_message = await uow.messages.update_message_status(
+            message_id, current_user.id, status_update
+        )
         if not updated_message:
             raise HTTPException(status_code=404, detail="Message not found")
+
+        # Extract the MessageStatus instance for the current user
+        message_status = next(
+            (status for status in updated_message.statuses if status.user_id == current_user.id),
+            None
+        )
+        if not message_status:
+            raise HTTPException(status_code=404, detail="MessageStatus not found")
+
+        # Publish an event to Redis asynchronously
+        channel_name = f"chat:{updated_message.chat_id}:status"
+        status_data = schemas.MessageStatus.from_orm(message_status).model_dump_json()
+        try:
+            redis_client = await get_redis_client()
+            await redis_client.publish(channel_name, status_data)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail="Failed to publish status update")
+
+        # Update unread count for the current user asynchronously
+        try:
+            unread_count = await uow.chats.get_unread_messages_count(updated_message.chat_id, current_user.id)
+            unread_count_channel = f"chat:{updated_message.chat_id}:unread_count:{current_user.id}"
+            unread_count_data = json.dumps({
+                "chat_id": updated_message.chat_id,
+                "unread_count": unread_count,
+                "user_id": current_user.id
+            })
+            await redis_client.publish(unread_count_channel, unread_count_data)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail="Failed to publish unread count")
+
         return updated_message
+

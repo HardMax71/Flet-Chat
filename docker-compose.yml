@@ -1,3 +1,7 @@
+networks:
+  chat_network:
+    driver: bridge
+
 services:
   db:
     image: postgres:${POSTGRES_VERSION}
@@ -9,8 +13,10 @@ services:
       - POSTGRES_DB=postgres
     ports:
       - "${DB_PORT}:5432"
+    networks:
+      - chat_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d ${DB_NAME}"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d ${DB_NAME}" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -29,9 +35,15 @@ services:
       - DATABASE_URL=postgresql+asyncpg://postgres:password@db:${DB_PORT}/${DB_NAME}
       - SECRET_KEY=${SECRET_KEY}
       - REFRESH_SECRET_KEY=${REFRESH_SECRET_KEY}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - chat_network
     command: >
       sh -c "
       until pg_isready -h db -p 5432 -U postgres; do echo 'Waiting for database...'; sleep 2; done;
@@ -39,5 +51,22 @@ services:
       uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
       "
 
+  redis:
+    image: redis:6.2-alpine
+    restart: always
+    healthcheck:
+      test: [ "CMD-SHELL", "redis-cli ping | grep PONG" ]
+      interval: 1s
+      timeout: 3s
+      retries: 5
+    command: redis-server
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - chat_network
+
 volumes:
   postgres_data:
+  redis_data:

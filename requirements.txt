@@ -75,3 +75,4 @@ watchdog==4.0.2
 watchfiles==0.24.0
 websockets==13.0.1
 yarl==1.9.11
+redis==5.0.8

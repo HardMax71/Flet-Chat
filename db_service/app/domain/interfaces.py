@@ -73,6 +73,10 @@ class AbstractChatRepository(ABC):
     async def get_unread_messages_count(self, chat_id: int, user_id: int) -> int:
         pass
 
+    @abstractmethod
+    async def get_chat_members(self, chat_id: int) -> List[models.User]:
+        pass
+
 
 class AbstractMessageRepository(ABC):
     @abstractmethod

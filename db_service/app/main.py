@@ -7,15 +7,21 @@ from app.infrastructure.database import engine, Base
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from app.infrastructure.redis_config import get_redis_client
+
+from app.infrastructure.redis_config import redis_client
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    await get_redis_client()
     yield
     # Shutdown
     await engine.dispose()
+    await redis_client.close()
 
 
 app = FastAPI(

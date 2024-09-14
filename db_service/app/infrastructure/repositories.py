@@ -195,6 +195,11 @@ class SQLAlchemyChatRepository(AbstractChatRepository):
         result = await self.session.execute(stmt)
         return result.scalar_one()
 
+    async def get_chat_members(self, chat_id: int) -> List[models.User]:
+        stmt = select(models.User).join(models.chat_members).filter(models.chat_members.c.chat_id == chat_id)
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
 class SQLAlchemyMessageRepository(AbstractMessageRepository):
     def __init__(self, session: AsyncSession):
         self.session = session

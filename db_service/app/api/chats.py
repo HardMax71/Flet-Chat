@@ -90,6 +90,21 @@ async def delete_chat(
     return {"message": "Chat deleted successfully"}
 
 
+@router.get("/chats/{chat_id}/members", response_model=List[schemas.User])
+async def get_chat_members(
+        chat_id: int,
+        uow: AbstractUnitOfWork = Depends(get_uow),
+        current_user: schemas.User = Depends(get_current_active_user)
+):
+    async with uow:
+        chat = await uow.chats.get_by_id(chat_id, current_user.id)
+        if not chat:
+            raise HTTPException(status_code=404, detail="Chat not found or you're not a member")
+
+        members = await uow.chats.get_chat_members(chat_id)
+        return members
+
+
 @router.post("/chats/{chat_id}/members", response_model=schemas.Chat)
 async def add_chat_member(
         chat_id: int,
@@ -120,9 +135,9 @@ async def remove_chat_member(
 
 @router.get("/chats/{chat_id}/unread_count", response_model=int)
 async def get_unread_messages_count(
-    chat_id: int,
-    uow: AbstractUnitOfWork = Depends(get_uow),
-    current_user: schemas.User = Depends(get_current_active_user)
+        chat_id: int,
+        uow: AbstractUnitOfWork = Depends(get_uow),
+        current_user: schemas.User = Depends(get_current_active_user)
 ):
     async with uow:
         return await uow.chats.get_unread_messages_count(chat_id, current_user.id)
