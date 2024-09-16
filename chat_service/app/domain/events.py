@@ -8,38 +8,35 @@ from typing import Optional
 class Event:
     pass
 
+@dataclass
+class UserInfo:
+    id: int
+    username: str
+
 
 @dataclass
-class MessageCreated(Event):
+class MessageEvent(Event):
     message_id: int
     chat_id: int
     user_id: int
     content: str
     created_at: datetime
-    user: dict
+    user: UserInfo
     is_deleted: bool
 
 @dataclass
-class MessageUpdated(Event):
-    message_id: int
-    chat_id: int
-    user_id: int
-    content: str
-    created_at: datetime
+class MessageCreated(MessageEvent):
+    pass
+
+
+@dataclass
+class MessageUpdated(MessageEvent):
     updated_at: datetime
-    user: dict
-    is_deleted: bool
 
 
 @dataclass
-class MessageDeleted(Event):
-    message_id: int
-    chat_id: int
-    user_id: int
-    created_at: datetime
-    updated_at: Optional[datetime]
-    user: dict
-    is_deleted: bool
+class MessageDeleted(MessageEvent):
+    updated_at: Optional[datetime] = None
 
 
 @dataclass

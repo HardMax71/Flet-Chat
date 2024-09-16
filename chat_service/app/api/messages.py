@@ -113,6 +113,7 @@ async def delete_message(
             chat_id=deleted_message.chat_id,
             user_id=deleted_message.user_id,
             created_at=deleted_message.created_at,
+            content=deleted_message.content,
             updated_at=deleted_message.updated_at,
             user={
                 "id": current_user.id,
