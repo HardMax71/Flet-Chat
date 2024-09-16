@@ -220,15 +220,67 @@ class ChatScreen(ft.UserControl):
         try:
             message = json.loads(data)
             self.logger.info(f"Received new message for chat ID {self.chat_id}: {message}")
-            if message['user']['id'] != self.current_user_id:
+
+            # Check if the message already exists in the list
+            existing_message = next((control for control in self.message_list.controls
+                                     if isinstance(control, ft.Row) and
+                                     control.controls[0].content.data == message['id']), None)
+
+            if existing_message:
+                # Update existing message
+                self.update_message_in_list(existing_message, message)
+            elif message['user']['id'] != self.current_user_id:
+                # Add new message
                 self.add_message_to_list(message)
-                self.update()
-                # Mark the new message as read
+
+            self.update()
+
+            # Mark the new message as read if it's not from the current user
+            if message['user']['id'] != self.current_user_id:
                 threading.Thread(target=self.mark_message_as_read, args=(message['id'],), daemon=True).start()
         except json.JSONDecodeError:
             self.logger.error(f"Failed to decode message: {data}")
         except Exception as e:
             self.logger.error(f"Error processing new message: {str(e)}")
+
+    def update_message_in_list(self, existing_message_row, updated_message):
+        """
+        Updates an existing message in the message list.
+        """
+        message_container = existing_message_row.controls[0].content
+        column_content = message_container.content
+        message_content = column_content.controls[1]
+        time_info = column_content.controls[2]
+
+        is_current_user = updated_message['user']['id'] == self.current_user_id
+        text_color = ft.colors.WHITE if is_current_user else ft.colors.BLACK
+
+        if updated_message['is_deleted']:
+            message_content.value = "<This message has been deleted>"
+            message_content.color = ft.colors.GREY_400
+        else:
+            message_content.value = updated_message['content']
+            message_content.color = text_color
+
+        message_time = datetime.fromisoformat(updated_message['created_at'])
+        formatted_time = message_time.strftime("%H:%M")
+        time_info.controls[0].value = formatted_time
+
+        if updated_message.get('updated_at') and updated_message['updated_at'] != updated_message['created_at']:
+            edit_time = datetime.fromisoformat(updated_message['updated_at'])
+            formatted_edit_time = edit_time.strftime("%H:%M")
+            if len(time_info.controls) > 1:
+                time_info.controls[1].value = f"(edited at {formatted_edit_time})"
+            else:
+                time_info.controls.append(
+                    ft.Text(f"(edited at {formatted_edit_time})",
+                            style=ft.TextThemeStyle.BODY_SMALL,
+                            italic=True,
+                            color=ft.colors.GREY_400 if is_current_user else ft.colors.GREY_700)
+                )
+
+        self.logger.info(
+            f"Updated message (ID: {updated_message['id']}) in the message list for chat ID {self.chat_id}")
 
     def go_back(self, e):
         """
@@ -357,6 +409,7 @@ class ChatScreen(ft.UserControl):
                 border_radius=ft.border_radius.all(10),
                 padding=10,
                 width=300,
+                data=message['id'],  # Store the message ID in the container's data
             ),
             on_long_press_start=lambda e: self.show_message_options(e, message, is_current_user),
         )

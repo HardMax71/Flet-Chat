@@ -145,7 +145,7 @@ async def test_delete_message(client: AsyncClient, auth_header, mock_redis):
     message_id = message_response.json()["id"]
 
     response = await client.delete(f"/api/v1/messages/{message_id}", headers=auth_header)
-    assert response.status_code == 204
+    assert response.status_code == 200
 
     # Try to get the deleted message
     response = await client.get(f"/api/v1/messages/{chat_id}", headers=auth_header)

@@ -298,15 +298,16 @@ class SQLAlchemyMessageRepository(AbstractMessageRepository):
         await self.session.refresh(db_message)
         return db_message
 
-    async def delete(self, message_id: int, user_id: int) -> bool:
+    async def delete(self, message_id: int, user_id: int) -> Optional[models.Message]:
         db_message = await self.get_by_id(message_id, user_id)
         if not db_message or db_message.user_id != user_id:
-            return False
+            return None
 
         db_message.is_deleted = True
         db_message.content = "<This message has been deleted>"
         await self.session.commit()
-        return True
+        await self.session.refresh(db_message)
+        return db_message
 
 
 class SQLAlchemyTokenRepository(AbstractTokenRepository):

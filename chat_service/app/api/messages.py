@@ -1,15 +1,14 @@
 # app/api/messages.py
-import json
 from typing import List, Optional
 
 from app.api.dependencies import get_uow, get_current_active_user
 from app.domain import schemas
-from app.infrastructure.redis_config import get_redis_client
+from app.domain.events import MessageCreated, MessageDeleted, MessageUpdated, MessageStatusUpdated, UnreadCountUpdated
+from app.infrastructure.event_dispatcher import event_dispatcher
 from app.infrastructure.unit_of_work import AbstractUnitOfWork
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 router = APIRouter()
-
 
 
 @router.post("/messages/", response_model=schemas.Message)
@@ -25,26 +24,33 @@ async def create_message(
 
         db_message = await uow.messages.create(message, current_user.id)
 
-        # Publish an event to Redis
-        channel_name = f"chat:{message.chat_id}"
-        message_data = schemas.Message.model_validate(db_message).model_dump_json()
-        redis_client = await get_redis_client()
-        await redis_client.publish(channel_name, message_data)  # Async publish
+        # Dispatch MessageCreated event
+        await event_dispatcher.dispatch(MessageCreated(
+            message_id=db_message.id,
+            chat_id=db_message.chat_id,
+            user_id=db_message.user_id,
+            content=db_message.content,
+            created_at=db_message.created_at,
+            user={
+                "id": current_user.id,
+                "username": current_user.username
+            },
+            is_deleted=db_message.is_deleted
+        ))
 
         # Update unread count for other chat members
         chat_members = await uow.chats.get_chat_members(message.chat_id)
         for member in chat_members:
             if member.id != current_user.id:
                 unread_count = await uow.chats.get_unread_messages_count(message.chat_id, member.id)
-                unread_count_channel = f"chat:{message.chat_id}:unread_count:{member.id}"
-                unread_count_data = json.dumps({
-                    "chat_id": message.chat_id,
-                    "unread_count": unread_count,
-                    "user_id": member.id
-                })
-                await redis_client.publish(unread_count_channel, unread_count_data)
+                # Dispatch UnreadCountUpdated event
+                await event_dispatcher.dispatch(UnreadCountUpdated(
+                    chat_id=message.chat_id,
+                    user_id=member.id,
+                    unread_count=unread_count
+                ))
+    return db_message
 
-        return db_message
 
 @router.get("/messages/{chat_id}", response_model=List[schemas.Message])
 async def read_messages(
@@ -71,20 +77,51 @@ async def update_message(
         updated_message = await uow.messages.update(message_id, message_update, current_user.id)
         if not updated_message:
             raise HTTPException(status_code=404, detail="Message not found or not authorized")
+
+        # Dispatch MessageUpdated event
+        await event_dispatcher.dispatch(MessageUpdated(
+            message_id=updated_message.id,
+            chat_id=updated_message.chat_id,
+            user_id=updated_message.user_id,
+            content=updated_message.content,
+            created_at=updated_message.created_at,
+            updated_at=updated_message.updated_at,
+            user={
+                "id": current_user.id,
+                "username": current_user.username
+            },
+            is_deleted=updated_message.is_deleted
+        ))
+
         return updated_message
 
 
-@router.delete("/messages/{message_id}", status_code=204)
+@router.delete("/messages/{message_id}", status_code=200, response_model=schemas.Message)
 async def delete_message(
         message_id: int,
         uow: AbstractUnitOfWork = Depends(get_uow),
         current_user: schemas.User = Depends(get_current_active_user)
 ):
     async with uow:
-        deleted = await uow.messages.delete(message_id, current_user.id)
-        if not deleted:
+        deleted_message = await uow.messages.delete(message_id, current_user.id)
+        if not deleted_message:
             raise HTTPException(status_code=404, detail="Message not found or not authorized")
-    return {"message": "Message deleted successfully"}
+
+        # Dispatch MessageDeleted event
+        await event_dispatcher.dispatch(MessageDeleted(
+            message_id=deleted_message.id,
+            chat_id=deleted_message.chat_id,
+            user_id=deleted_message.user_id,
+            created_at=deleted_message.created_at,
+            updated_at=deleted_message.updated_at,
+            user={
+                "id": current_user.id,
+                "username": current_user.username
+            },
+            is_deleted=deleted_message.is_deleted
+        ))
+
+    return deleted_message
 
 
 @router.put("/messages/{message_id}/status", response_model=schemas.Message)
@@ -110,27 +147,23 @@ async def update_message_status(
         if not message_status:
             raise HTTPException(status_code=404, detail="MessageStatus not found")
 
-        # Publish an event to Redis asynchronously
-        channel_name = f"chat:{updated_message.chat_id}:status"
-        status_data = schemas.MessageStatus.model_validate(message_status).model_dump_json()
-        try:
-            redis_client = await get_redis_client()
-            await redis_client.publish(channel_name, status_data)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail="Failed to publish status update")
+        # Dispatch MessageStatusUpdated event
+        await event_dispatcher.dispatch(MessageStatusUpdated(
+            message_id=updated_message.id,
+            chat_id=updated_message.chat_id,
+            user_id=current_user.id,
+            is_read=message_status.is_read,
+            read_at=message_status.read_at
+        ))
 
-        # Update unread count for the current user asynchronously
-        try:
-            unread_count = await uow.chats.get_unread_messages_count(updated_message.chat_id, current_user.id)
-            unread_count_channel = f"chat:{updated_message.chat_id}:unread_count:{current_user.id}"
-            unread_count_data = json.dumps({
-                "chat_id": updated_message.chat_id,
-                "unread_count": unread_count,
-                "user_id": current_user.id
-            })
-            await redis_client.publish(unread_count_channel, unread_count_data)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail="Failed to publish unread count")
+        # Update unread count for the current user
+        unread_count = await uow.chats.get_unread_messages_count(updated_message.chat_id, current_user.id)
+
+        # Dispatch UnreadCountUpdated event
+        await event_dispatcher.dispatch(UnreadCountUpdated(
+            chat_id=updated_message.chat_id,
+            user_id=current_user.id,
+            unread_count=unread_count
+        ))
 
         return updated_message
-

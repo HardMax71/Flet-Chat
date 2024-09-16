@@ -102,7 +102,7 @@ class AbstractMessageRepository(ABC):
         pass
 
     @abstractmethod
-    async def delete(self, message_id: int, user_id: int) -> bool:
+    async def delete(self, message_id: int, user_id: int) -> Optional[schemas.Message]:
         pass
 
     @abstractmethod
