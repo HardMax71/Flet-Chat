@@ -1,12 +1,27 @@
+import logging
 import flet as ft
-
 
 class UserProfileScreen(ft.UserControl):
     def __init__(self, chat_app):
         super().__init__()
         self.chat_app = chat_app
 
+        # Configure logging
+        self.logger = logging.getLogger('UserProfileScreen')
+        self.logger.setLevel(logging.INFO)
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter('[%(asctime)s] %(levelname)s:%(name)s: %(message)s')
+        handler.setFormatter(formatter)
+        if not self.logger.handlers:
+            self.logger.addHandler(handler)
+
+        self.logger.info("UserProfileScreen initialized")
+
     def build(self):
+        """
+        Builds the user profile screen UI.
+        """
+        self.logger.info("Building user profile screen UI")
         response = self.chat_app.api_client.get_current_user()
         if response.success:
             self.user_data = response.data
@@ -44,13 +59,22 @@ class UserProfileScreen(ft.UserControl):
                 expand=True,
             )
         else:
+            self.logger.error(f"Failed to load user profile: {response.error}")
             self.chat_app.show_error_dialog("Error Loading Profile", f"Failed to load user profile: {response.error}")
             return ft.Text("Failed to load profile")
 
     def go_back(self, e):
+        """
+        Navigates back to the chat list screen.
+        """
+        self.logger.info("Navigating back to chat list")
         self.chat_app.show_chat_list()
 
     def save_changes(self, e):
+        """
+        Saves the changes made to the user profile.
+        """
+        self.logger.info("Attempting to save profile changes")
         user_data = {
             "username": self.username.value,
             "email": self.email.value,
@@ -60,7 +84,7 @@ class UserProfileScreen(ft.UserControl):
 
         response = self.chat_app.api_client.update_user(user_data)
         if response.success:
-            # Show a dialog with a button to log out and redirect to login
+            self.logger.info("Profile updated successfully")
             dialog = ft.AlertDialog(
                 title=ft.Text("Profile Updated"),
                 content=ft.Text(
@@ -73,36 +97,51 @@ class UserProfileScreen(ft.UserControl):
             dialog.open = True
             self.page.update()
         else:
+            self.logger.error(f"Failed to update profile: {response.error}")
             self.chat_app.show_error_dialog("Error Updating Profile", f"Failed to update profile: {response.error}")
 
     def relogin(self, e):
-        # Close the dialog
+        """
+        Handles the re-login process after profile update.
+        """
+        self.logger.info("Initiating re-login process")
         if self.page.dialog:
             self.page.dialog.open = False
             self.page.update()
 
-        # Clear the token in the API client and show the login screen
         self.chat_app.api_client.token = None
         self.chat_app.show_login()
 
     def logout(self, e):
+        """
+        Handles the logout process.
+        """
+        self.logger.info("Attempting to log out")
         response = self.chat_app.api_client.logout()
         if response.success:
-            # Clear the tokens in the API client
+            self.logger.info("Logout successful")
             self.chat_app.api_client.access_token = None
             self.chat_app.api_client.refresh_token = None
             self.chat_app.api_client.token_expiry = None
             self.chat_app.show_login()
         else:
+            self.logger.error(f"Failed to logout: {response.error}")
             self.chat_app.show_error_dialog("Error Logging Out", f"Failed to logout: {response.error}")
 
     def delete_account(self, e):
+        """
+        Initiates the account deletion process.
+        """
+        self.logger.info("Initiating account deletion process")
         def confirm_delete(e):
+            self.logger.info("Account deletion confirmed")
             response = self.chat_app.api_client.delete_user()
             if response.success:
+                self.logger.info("Account deleted successfully")
                 self.chat_app.api_client.token = None
                 self.chat_app.show_login()
             else:
+                self.logger.error(f"Failed to delete account: {response.error}")
                 self.chat_app.show_error_dialog("Error Deleting Account", f"Failed to delete account: {response.error}")
             dialog.open = False
             self.page.update()
@@ -120,5 +159,21 @@ class UserProfileScreen(ft.UserControl):
         self.page.update()
 
     def close_dialog(self, dialog):
+        """
+        Closes the current dialog.
+        """
+        self.logger.info("Closing dialog")
         dialog.open = False
         self.page.update()
+
+    def did_mount(self):
+        """
+        Called when the control is added to the page.
+        """
+        self.logger.info("UserProfileScreen mounted")
+
+    def will_unmount(self):
+        """
+        Called when the control is about to be removed from the page.
+        """
+        self.logger.info("UserProfileScreen will unmount")
