@@ -1,20 +1,19 @@
 # app/domain/events.py
-from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
+from pydantic import BaseModel
 
-@dataclass
-class Event:
+
+class Event(BaseModel):
     pass
 
-@dataclass
-class UserInfo:
+
+class UserInfo(BaseModel):
     id: int
     username: str
 
 
-@dataclass
 class MessageEvent(Event):
     message_id: int
     chat_id: int
@@ -24,22 +23,19 @@ class MessageEvent(Event):
     user: UserInfo
     is_deleted: bool
 
-@dataclass
+
 class MessageCreated(MessageEvent):
     pass
 
 
-@dataclass
 class MessageUpdated(MessageEvent):
     updated_at: datetime
 
 
-@dataclass
 class MessageDeleted(MessageEvent):
     updated_at: Optional[datetime] = None
 
 
-@dataclass
 class MessageStatusUpdated(Event):
     message_id: int
     chat_id: int
@@ -48,7 +44,6 @@ class MessageStatusUpdated(Event):
     read_at: Optional[datetime]
 
 
-@dataclass
 class UnreadCountUpdated(Event):
     chat_id: int
     user_id: int
