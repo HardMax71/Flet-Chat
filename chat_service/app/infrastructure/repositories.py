@@ -1,18 +1,19 @@
 # app/infrastructure/repositories.py
+
 from typing import Optional, List
 
 from app.domain import models, schemas
 from app.domain.interfaces import (AbstractUserRepository, AbstractChatRepository,
                                    AbstractMessageRepository, AbstractTokenRepository)
-from app.infrastructure.security import get_password_hash
 from sqlalchemy import select, or_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload, joinedload
 
 
 class SQLAlchemyUserRepository(AbstractUserRepository):
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, security_service):
         self.session = session
+        self.security_service = security_service
 
     async def get_by_id(self, user_id: int) -> Optional[models.User]:
         result = await self.session.execute(select(models.User).filter(models.User.id == user_id))
@@ -31,7 +32,7 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
         return result.scalars().all()
 
     async def create(self, user: schemas.UserCreate) -> models.User:
-        hashed_password = get_password_hash(user.password)
+        hashed_password = self.security_service.get_password_hash(user.password)
         db_user = models.User(username=user.username, email=user.email, hashed_password=hashed_password)
         self.session.add(db_user)
         await self.session.commit()
@@ -44,7 +45,7 @@ class SQLAlchemyUserRepository(AbstractUserRepository):
 
         update_data = user_update.model_dump(exclude_unset=True)
         if "password" in update_data:
-            update_data["hashed_password"] = get_password_hash(update_data.pop("password"))
+            update_data["hashed_password"] = self.security_service.get_password_hash(update_data.pop("password"))
 
         for key, value in update_data.items():
             setattr(db_user, key, value)
@@ -200,6 +201,7 @@ class SQLAlchemyChatRepository(AbstractChatRepository):
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
+
 class SQLAlchemyMessageRepository(AbstractMessageRepository):
     def __init__(self, session: AsyncSession):
         self.session = session
@@ -258,7 +260,8 @@ class SQLAlchemyMessageRepository(AbstractMessageRepository):
         await self.session.refresh(db_message)
         return db_message
 
-    async def update_message_status(self, message_id: int, user_id: int, status_update: schemas.MessageStatusUpdate) -> Optional[models.Message]:
+    async def update_message_status(self, message_id: int, user_id: int, status_update: schemas.MessageStatusUpdate) -> \
+    Optional[models.Message]:
         # First, update the message status
         stmt = select(models.MessageStatus).filter(
             models.MessageStatus.message_id == message_id,

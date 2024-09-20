@@ -1,26 +1,30 @@
-import os
+# app/infrastructure/redis_config.py
 import redis.asyncio as redis
 
-REDIS_HOST = os.environ.get('REDIS_HOST', 'localhost')
-REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
+class RedisClient:
+    def __init__(self, host: str, port: int):
+        self.host = host
+        self.port = port
+        self.client = None
 
-redis_client = None
-
-async def get_redis_client():
-    global redis_client
-    if redis_client is None:
-        redis_client = redis.Redis(
-            host=REDIS_HOST,
-            port=REDIS_PORT,
+    async def connect(self):
+        self.client = redis.Redis(
+            host=self.host,
+            port=self.port,
             db=0,
             decode_responses=True,
         )
-    try:
-        await redis_client.ping()
-        print(f"Successfully connected to Redis at {REDIS_HOST}:{REDIS_PORT}")
-    except redis.ConnectionError as e:
-        print(f"Failed to connect to Redis: {str(e)}")
-        print(f"Redis host: {REDIS_HOST}, Redis port: {REDIS_PORT}")
-        raise e
-    return redis_client
+        try:
+            await self.client.ping()
+            print(f"Successfully connected to Redis at {self.host}:{self.port}")
+        except redis.ConnectionError as e:
+            print(f"Failed to connect to Redis: {str(e)}")
+            print(f"Redis host: {self.host}, Redis port: {self.port}")
+            raise e
 
+    async def disconnect(self):
+        if self.client:
+            await self.client.close()
+
+    async def publish(self, channel: str, message: str):
+        await self.client.publish(channel, message)

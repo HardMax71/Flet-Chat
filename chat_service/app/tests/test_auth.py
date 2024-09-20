@@ -1,5 +1,4 @@
 import asyncio
-import time
 
 import pytest
 from httpx import AsyncClient
@@ -92,12 +91,10 @@ async def test_refresh_token_invalid(client: AsyncClient):
     assert "Invalid refresh token" in response.json()["detail"]
 
 
-async def test_access_token_expiration(client: AsyncClient, test_user):
-    from app.config import settings
-
+async def test_access_token_expiration(client: AsyncClient, test_user, app_config):
     # Set a very short expiration time for testing
-    original_expire_minutes = settings.ACCESS_TOKEN_EXPIRE_MINUTES
-    settings.ACCESS_TOKEN_EXPIRE_MINUTES = 0.05  # 3 seconds
+    original_expire_minutes = app_config.ACCESS_TOKEN_EXPIRE_MINUTES
+    app_config.ACCESS_TOKEN_EXPIRE_MINUTES = 0.05  # 3 seconds
 
     login_response = await client.post(
         "/api/v1/auth/login",
@@ -106,7 +103,7 @@ async def test_access_token_expiration(client: AsyncClient, test_user):
     access_token = login_response.json()["access_token"]
 
     # Wait for token to expire
-    time.sleep(4)
+    await asyncio.sleep(4)
 
     # Try to use expired token
     me_response = await client.get(
@@ -116,14 +113,12 @@ async def test_access_token_expiration(client: AsyncClient, test_user):
     assert me_response.status_code == 401
 
     # Reset the expiration time
-    settings.ACCESS_TOKEN_EXPIRE_MINUTES = original_expire_minutes
+    app_config.ACCESS_TOKEN_EXPIRE_MINUTES = original_expire_minutes
 
 
-async def test_refresh_token_expiration(client: AsyncClient, test_user):
-    from app.config import settings
-
-    original_expire_days = settings.REFRESH_TOKEN_EXPIRE_DAYS
-    settings.REFRESH_TOKEN_EXPIRE_DAYS = 1 / 86400  # 1 second in days
+async def test_refresh_token_expiration(client: AsyncClient, test_user, app_config):
+    original_expire_days = app_config.REFRESH_TOKEN_EXPIRE_DAYS
+    app_config.REFRESH_TOKEN_EXPIRE_DAYS = 1 / 86400  # 1 second in days
 
     login_response = await client.post(
         "/api/v1/auth/login",
@@ -148,7 +143,7 @@ async def test_refresh_token_expiration(client: AsyncClient, test_user):
     print(f"Refresh response: {refresh_response.json()}")
 
     # Reset the expiration time
-    settings.REFRESH_TOKEN_EXPIRE_DAYS = original_expire_days
+    app_config.REFRESH_TOKEN_EXPIRE_DAYS = original_expire_days
 
 
 async def test_logout(client: AsyncClient, auth_header):

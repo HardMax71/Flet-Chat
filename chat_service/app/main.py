@@ -2,55 +2,89 @@
 from contextlib import asynccontextmanager
 
 from app.api import users, chats, messages, auth
-from app.config import settings
-from app.infrastructure.database import engine, Base
+from app.config import AppConfig
+from app.infrastructure.database import Database
+from app.infrastructure.event_dispatcher import EventDispatcher
+from app.infrastructure.event_handlers import EventHandlers
+from app.infrastructure.redis_config import RedisClient
+from app.infrastructure.security import SecurityService
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from app.infrastructure.redis_config import get_redis_client
 
-from app.infrastructure.redis_config import redis_client
+class Application:
+    def __init__(self, config: AppConfig, database: Database = None):
+        self.config = config
+        self.database = database if database else Database(config.DATABASE_URL)
+        self.redis_client = RedisClient(config.REDIS_HOST, config.REDIS_PORT)
+        self.event_dispatcher = EventDispatcher()
+        self.security_service = SecurityService(config)
+        self.event_handlers = EventHandlers(self.redis_client)
+
+    @asynccontextmanager
+    async def lifespan(self, app: FastAPI):
+        await self.database.connect()
+        await self.redis_client.connect()
+
+        # Register event handlers
+        self.event_dispatcher.register("MessageCreated", self.event_handlers.publish_message_created)
+        self.event_dispatcher.register("MessageUpdated", self.event_handlers.publish_message_updated)
+        self.event_dispatcher.register("MessageDeleted", self.event_handlers.publish_message_deleted)
+        self.event_dispatcher.register("MessageStatusUpdated", self.event_handlers.publish_message_status_updated)
+        self.event_dispatcher.register("UnreadCountUpdated", self.event_handlers.publish_unread_count_updated)
+
+        yield
+        await self.database.disconnect()
+        await self.redis_client.disconnect()
+
+    def create_app(self):
+        app = FastAPI(
+            title=self.config.PROJECT_NAME,
+            version=self.config.PROJECT_VERSION,
+            description=self.config.PROJECT_DESCRIPTION,
+            openapi_url=f"{self.config.API_V1_STR}/openapi.json",
+            lifespan=self.lifespan
+        )
+
+        app.state.database = self.database
+        app.state.redis_client = self.redis_client
+        app.state.security_service = self.security_service
+        app.state.event_dispatcher = self.event_dispatcher
+        app.state.config = self.config
+
+        # Create routers
+        auth_router = auth.create_router(self.config, self.security_service)
+        users_router = users.create_router()
+        chats_router = chats.create_router()
+        messages_router = messages.create_router(self.event_dispatcher)
+
+        # Include routers
+        app.include_router(auth_router, prefix=f"{self.config.API_V1_STR}/auth", tags=["auth"])
+        app.include_router(users_router, prefix=f"{self.config.API_V1_STR}/users", tags=["users"])
+        app.include_router(chats_router, prefix=f"{self.config.API_V1_STR}/chats", tags=["chats"])
+        app.include_router(messages_router, prefix=f"{self.config.API_V1_STR}/messages", tags=["messages"])
+
+        @app.exception_handler(Exception)
+        async def global_exception_handler(request: Request, exc: Exception):
+            return JSONResponse(
+                status_code=500,
+                content={"message": f"An unexpected error occurred: {str(exc)}"}
+            )
+
+        @app.get("/")
+        async def root():
+            return {"message": "Welcome to the Chat API"}
+
+        return app
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    await get_redis_client()
-    yield
-    # Shutdown
-    await engine.dispose()
-    await redis_client.close()
+def create_app():
+    config = AppConfig()
+    application = Application(config)
+    return application.create_app()
 
 
-app = FastAPI(
-    title=settings.PROJECT_NAME,
-    version=settings.PROJECT_VERSION,
-    description=settings.PROJECT_DESCRIPTION,
-    openapi_url=f"{settings.API_V1_STR}/openapi.json",
-    lifespan=lifespan
-)
-
-# Include routers
-app.include_router(auth.router, prefix=settings.API_V1_STR, tags=["auth"])
-app.include_router(users.router, prefix=settings.API_V1_STR, tags=["users"])
-app.include_router(chats.router, prefix=settings.API_V1_STR, tags=["chats"])
-app.include_router(messages.router, prefix=settings.API_V1_STR, tags=["messages"])
-
-
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    return JSONResponse(
-        status_code=500,
-        content={"message": f"An unexpected error occurred: {str(exc)}"}
-    )
-
-
-@app.get("/")
-async def root():
-    return {"message": "Welcome to the Chat API"}
-
+app = create_app()
 
 if __name__ == "__main__":
     import uvicorn

@@ -35,8 +35,8 @@ services:
       - DATABASE_URL=postgresql+asyncpg://postgres:password@db:${DB_PORT}/${DB_NAME}
       - SECRET_KEY=${SECRET_KEY}
       - REFRESH_SECRET_KEY=${REFRESH_SECRET_KEY}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
     depends_on:
       db:
         condition: service_healthy
@@ -46,13 +46,14 @@ services:
       - chat_network
     command: >
       sh -c "
-      until pg_isready -h db -p 5432 -U postgres; do echo 'Waiting for database...'; sleep 2; done;
-      PGPASSWORD=password psql -U postgres -h db -f /docker-entrypoint-initdb.d/init.sql;
-      uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-      "
+            until pg_isready -h db -p 5432 -U postgres; do echo 'Waiting for database...'; sleep 2; done;
+            PGPASSWORD=password psql -U postgres -h db -f /docker-entrypoint-initdb.d/init.sql;
+            uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+            "
+  
 
   redis:
-    image: redis:6.2-alpine
+    image: redis:${REDIS_VERSION}
     restart: always
     healthcheck:
       test: [ "CMD-SHELL", "redis-cli ping | grep PONG" ]
@@ -61,7 +62,7 @@ services:
       retries: 5
     command: redis-server
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT}:6379"
     volumes:
       - redis_data:/data
     networks:

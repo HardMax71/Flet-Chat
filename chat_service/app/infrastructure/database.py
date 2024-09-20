@@ -1,16 +1,31 @@
-import os
+# app/infrastructure/database.py
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
-
-engine = create_async_engine(DATABASE_URL, echo=True)
-AsyncSessionLocal = sessionmaker(
-    engine, class_=AsyncSession, expire_on_commit=False
-)
-
 Base = declarative_base()
 
-async def get_session() -> AsyncSession:
-    async with AsyncSessionLocal() as session:
-        yield session
+
+class Database:
+    def __init__(self, database_url: str = None, engine=None):
+        if engine:
+            self.engine = engine
+        elif database_url:
+            self.engine = create_async_engine(database_url, echo=False)
+        else:
+            raise ValueError("Either database_url or engine must be provided")
+
+        self.SessionLocal = sessionmaker(
+            self.engine, class_=AsyncSession, expire_on_commit=False
+        )
+
+    async def connect(self):
+        async with self.engine.begin() as conn:
+            import app.domain.models  # Ensure all models are imported
+            await conn.run_sync(Base.metadata.create_all)
+
+    async def disconnect(self):
+        await self.engine.dispose()
+
+    async def get_session(self) -> AsyncSession:
+        async with self.SessionLocal() as session:
+            yield session
