@@ -21,17 +21,18 @@ class Application:
         self.security_service = SecurityService(config)
         self.event_handlers = EventHandlers(self.redis_client)
 
-    @asynccontextmanager
-    async def lifespan(self, app: FastAPI):
-        await self.database.connect()
-        await self.redis_client.connect()
-
         # Register event handlers
         self.event_dispatcher.register("MessageCreated", self.event_handlers.publish_message_created)
         self.event_dispatcher.register("MessageUpdated", self.event_handlers.publish_message_updated)
         self.event_dispatcher.register("MessageDeleted", self.event_handlers.publish_message_deleted)
         self.event_dispatcher.register("MessageStatusUpdated", self.event_handlers.publish_message_status_updated)
         self.event_dispatcher.register("UnreadCountUpdated", self.event_handlers.publish_unread_count_updated)
+
+
+    @asynccontextmanager
+    async def lifespan(self, app: FastAPI):
+        await self.database.connect()
+        await self.redis_client.connect()
 
         yield
         await self.database.disconnect()
@@ -78,13 +79,13 @@ class Application:
         return app
 
 
-def create_app():
+def create():
     config = AppConfig()
     application = Application(config)
     return application.create_app()
 
 
-app = create_app()
+app = create()
 
 if __name__ == "__main__":
     import uvicorn
