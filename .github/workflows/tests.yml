@@ -35,20 +35,24 @@ jobs:
         pip install -r requirements.txt
         pip install pytest-cov codecov
 
-    - name: Run tests with coverage
+    - name: Run unit tests
+      run: |
+        pytest --cov=app --cov-report=xml chat_service/app/tests/unit
+
+    - name: Run integration tests
       env:
         SECRET_KEY: test_secret_key
         REDIS_HOST: localhost
         REDIS_PORT: 6379
       run: |
-        pytest --cov=app --cov-report=xml chat_service/app/tests
+        pytest --cov=app --cov-report=xml --cov-append chat_service/app/tests/integration
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: ./coverage.xml
-        flags: unittests
+        flags: unittests,integrationtests
         name: codecov-umbrella
         fail_ci_if_error: true
 
