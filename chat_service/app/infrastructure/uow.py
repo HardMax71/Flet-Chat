@@ -57,9 +57,6 @@ class UnitOfWork:
     async def rollback(self):
         self.clear()
 
-    def get_mapper(self, model_type: Type):
-        return self.mappers[model_type]
-
     def clear(self):
         self.dirty.clear()
         self.new.clear()

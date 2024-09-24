@@ -1,7 +1,8 @@
 # app/infrastructure/event_handlers.py
 import json
 from typing import Any, Dict
-from app.domain.events import MessageCreated, MessageUpdated, MessageDeleted, MessageStatusUpdated, UnreadCountUpdated, MessageEvent
+from app.domain.events import (MessageCreated, MessageUpdated, MessageDeleted,
+                               MessageStatusUpdated, UnreadCountUpdated, MessageEvent)
 
 class EventHandlers:
     def __init__(self, redis_client):

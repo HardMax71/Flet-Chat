@@ -17,12 +17,12 @@ from fastapi.responses import JSONResponse
 class Application:
     def __init__(self, config: AppConfig, database: Database = None):
         self.config = config
+        self.logger = self.setup_logger()
         self.database = database if database else Database(config.DATABASE_URL)
-        self.redis_client = RedisClient(config.REDIS_HOST, config.REDIS_PORT)
+        self.redis_client = RedisClient(config.REDIS_HOST, config.REDIS_PORT, self.logger)
         self.event_dispatcher = EventDispatcher()
         self.security_service = SecurityService(config)
         self.event_handlers = EventHandlers(self.redis_client)
-        self.logger = self.setup_logger()
 
         # Register event handlers
         self.event_dispatcher.register("MessageCreated", self.event_handlers.publish_message_created)

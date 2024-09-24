@@ -141,7 +141,8 @@ class MessageMapper(DataMapper[models.Message]):
             await self.session.flush()
         return message
 
-    async def update_message(self, message_id: int, message_update: schemas.MessageUpdate, user_id: int) -> Optional[models.Message]:
+    async def update_message(self, message_id: int, message_update: schemas.MessageUpdate, user_id: int) \
+            -> Optional[models.Message]:
         stmt = select(models.Message).join(models.Chat).filter(
             models.Message.id == message_id,
             models.Message.user_id == user_id,
@@ -155,8 +156,9 @@ class MessageMapper(DataMapper[models.Message]):
             await self.session.flush()
         return message
 
-    async def update_message_status(self, message_id: int, user_id: int, status_update: schemas.MessageStatusUpdate) -> \
-    Optional[models.Message]:
+    async def update_message_status(self,
+                                    message_id: int, user_id: int,
+                                    status_update: schemas.MessageStatusUpdate) -> Optional[models.Message]:
         stmt = select(models.Message).options(
             selectinload(models.Message.statuses)
         ).filter(models.Message.id == message_id)
