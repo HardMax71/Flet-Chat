@@ -1,6 +1,7 @@
 # app/main.py
 from contextlib import asynccontextmanager
-
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from app.api import users, chats, messages, auth
 from app.config import AppConfig
 from app.infrastructure.database import Database
@@ -8,9 +9,6 @@ from app.infrastructure.event_dispatcher import EventDispatcher
 from app.infrastructure.event_handlers import EventHandlers
 from app.infrastructure.redis_config import RedisClient
 from app.infrastructure.security import SecurityService
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
-
 
 class Application:
     def __init__(self, config: AppConfig, database: Database = None):
@@ -28,12 +26,10 @@ class Application:
         self.event_dispatcher.register("MessageStatusUpdated", self.event_handlers.publish_message_status_updated)
         self.event_dispatcher.register("UnreadCountUpdated", self.event_handlers.publish_unread_count_updated)
 
-
     @asynccontextmanager
     async def lifespan(self, app: FastAPI):
         await self.database.connect()
         await self.redis_client.connect()
-
         yield
         await self.database.disconnect()
         await self.redis_client.disconnect()
@@ -47,23 +43,16 @@ class Application:
             lifespan=self.lifespan
         )
 
-        app.state.database = self.database
-        app.state.redis_client = self.redis_client
+        app.state.config = self.config
         app.state.security_service = self.security_service
         app.state.event_dispatcher = self.event_dispatcher
-        app.state.config = self.config
+        app.state.database = self.database
 
         # Create routers
-        auth_router = auth.create_router(self.config, self.security_service)
-        users_router = users.create_router()
-        chats_router = chats.create_router()
-        messages_router = messages.create_router(self.event_dispatcher)
-
-        # Include routers
-        app.include_router(auth_router, prefix=f"{self.config.API_V1_STR}/auth", tags=["auth"])
-        app.include_router(users_router, prefix=f"{self.config.API_V1_STR}/users", tags=["users"])
-        app.include_router(chats_router, prefix=f"{self.config.API_V1_STR}/chats", tags=["chats"])
-        app.include_router(messages_router, prefix=f"{self.config.API_V1_STR}/messages", tags=["messages"])
+        app.include_router(auth.create_router(), prefix=f"{self.config.API_V1_STR}/auth", tags=["auth"])
+        app.include_router(users.create_router(), prefix=f"{self.config.API_V1_STR}/users", tags=["users"])
+        app.include_router(chats.create_router(), prefix=f"{self.config.API_V1_STR}/chats", tags=["chats"])
+        app.include_router(messages.create_router(), prefix=f"{self.config.API_V1_STR}/messages", tags=["messages"])
 
         @app.exception_handler(Exception)
         async def global_exception_handler(request: Request, exc: Exception):
@@ -78,16 +67,13 @@ class Application:
 
         return app
 
-
 def create():
     config = AppConfig()
     application = Application(config)
     return application.create_app()
 
-
 app = create()
 
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run(app, host="0.0.0.0", port=8000)

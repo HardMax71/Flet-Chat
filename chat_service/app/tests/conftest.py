@@ -1,8 +1,9 @@
 # app/tests/conftest.py
+
 import random
 import string
-
 import pytest
+from sqlalchemy.pool import StaticPool
 from app.config import AppConfig
 from app.domain import models
 from app.infrastructure.database import Base, Database
@@ -12,12 +13,16 @@ from fakeredis import aioredis
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
-
+from app.infrastructure.uow import init_uow, UnitOfWork
+from app.api import dependencies
 
 @pytest.fixture(scope="function")
 def app_config(tmp_path):
+    """
+    Provide a test configuration with a shared in-memory SQLite database.
+    """
     return AppConfig(
-        DATABASE_URL=f"sqlite+aiosqlite:///:memory:",
+        DATABASE_URL="sqlite+aiosqlite:///:memory:?cache=shared",  # Enable shared cache
         REDIS_HOST="localhost",
         REDIS_PORT=6379,
         SECRET_KEY="test_secret_key",
@@ -31,7 +36,6 @@ def app_config(tmp_path):
         REFRESH_TOKEN_EXPIRE_DAYS=7,
     )
 
-
 @pytest.fixture(scope="function")
 async def mock_redis():
     """Provide a fake Redis client for testing."""
@@ -40,20 +44,20 @@ async def mock_redis():
     await redis.flushall()
     await redis.aclose()
 
-
 @pytest.fixture(scope="function")
 async def engine(app_config):
-    """Create a SQLAlchemy engine for testing."""
+    """Create a SQLAlchemy engine for testing with shared in-memory SQLite."""
     engine = create_async_engine(
         app_config.DATABASE_URL,
-        connect_args={"check_same_thread": False, "uri": True},  # Enable URI parsing for shared cache
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,  # Reuse the same connection
         echo=False
     )
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        from app.domain import models  # Ensure all models are imported
+        await conn.run_sync(models.Base.metadata.create_all)
     yield engine
     await engine.dispose()
-
 
 @pytest.fixture(scope="function")
 async def db_session(engine):
@@ -64,6 +68,10 @@ async def db_session(engine):
     async with TestingSessionLocal() as session:
         yield session
 
+@pytest.fixture(scope="function")
+async def uow(db_session):
+    """Provide a UnitOfWork instance for testing."""
+    return init_uow(db_session)
 
 @pytest.fixture(scope="function")
 async def override_get_db(db_session):
@@ -73,7 +81,6 @@ async def override_get_db(db_session):
         yield db_session
 
     return _override_get_db
-
 
 @pytest.fixture(scope="function")
 async def app(app_config, mock_redis, engine):
@@ -87,21 +94,18 @@ async def app(app_config, mock_redis, engine):
 
     return app_instance
 
-
 @pytest.fixture(scope="function")
 async def app_with_db(app, override_get_db):
     """Override dependencies to use the test database session."""
-    app.dependency_overrides[Database.get_session] = override_get_db
+    app.dependency_overrides[dependencies.get_session] = override_get_db  # Correctly override get_session
     yield app
     app.dependency_overrides.clear()
-
 
 @pytest.fixture(scope="function")
 async def client(app_with_db):
     """Provide an HTTP client with the test app."""
     async with AsyncClient(app=app_with_db, base_url="http://test") as ac:
         yield ac
-
 
 @pytest.fixture(scope="function")
 async def test_user(db_session, app_config):
@@ -119,7 +123,6 @@ async def test_user(db_session, app_config):
     await db_session.refresh(user)
     return user
 
-
 @pytest.fixture(scope="function")
 async def test_user2(db_session, app_config):
     """Create a second test user in the database."""
@@ -135,14 +138,19 @@ async def test_user2(db_session, app_config):
     await db_session.refresh(user)
     return user
 
-
 @pytest.fixture(scope="function")
-async def auth_header(client, test_user):
+async def auth_header(client, test_user, uow):
     """Provide an authorization header for authenticated requests."""
     response = await client.post(
         "/api/v1/auth/login",
-        data={"username": test_user.username, "password": "testpassword"}  # Use JSON payload
+        data={"username": test_user.username, "password": "testpassword"}  # Use form data
     )
     assert response.status_code == 200, f"Login failed: {response.json()}"
-    access_token = response.json()["access_token"]
+    access_token = response.json().get("access_token")
+    assert access_token is not None, "Access token was not returned in the response"
+
+    # Verify token is stored in the database
+    token = await uow.mappers[models.Token].get_by_access_token(access_token)
+    assert token is not None, "Access token was not stored in the database"
+
     return {"Authorization": f"Bearer {access_token}"}

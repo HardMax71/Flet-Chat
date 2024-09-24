@@ -43,15 +43,18 @@ async def test_get_chats_with_filters(client: AsyncClient, auth_header):
     assert data[0]["name"] == "Alpha Chat"
 
 
-async def test_start_chat(client: AsyncClient, auth_header, test_user2):
+async def test_start_chat(client: AsyncClient, auth_header, test_user, test_user2):
     response = await client.post(
         f"/api/v1/chats/start",
         headers=auth_header,
         json={"other_user_id": test_user2.id}
     )
-    assert response.status_code == 200
+    assert response.status_code == 200, f"Start chat failed: {response.text}"
     data = response.json()
-    assert f"Chat with {test_user2.username}" in data["name"]
+    # Adjusted assertion to match "Chat between {user1} and {user2}"
+    expected_chat_name = f"Chat between {test_user.username} and {test_user2.username}"
+    assert expected_chat_name in data[
+        "name"], f"Expected chat name to contain '{expected_chat_name}', got '{data['name']}'"
 
 
 async def test_start_chat_nonexistent_user(client: AsyncClient, auth_header):

@@ -18,16 +18,16 @@ class SecurityService:
     def create_access_token(self, data: dict, expires_delta: Optional[datetime.timedelta] = None):
         to_encode = data.copy()
         if expires_delta:
-            expire = datetime.datetime.now(datetime.UTC) + expires_delta
+            expire = datetime.datetime.now(datetime.timezone.utc) + expires_delta
         else:
-            expire = datetime.datetime.now(datetime.UTC) + datetime.timedelta(minutes=15)
+            expire = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=15)
         to_encode.update({"exp": expire})
         encoded_jwt = jwt.encode(to_encode, self.config.SECRET_KEY, algorithm=self.config.ALGORITHM)
         return encoded_jwt, expire
 
     def create_refresh_token(self, data: dict):
         to_encode = data.copy()
-        expire = datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=self.config.REFRESH_TOKEN_EXPIRE_DAYS)
+        expire = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=self.config.REFRESH_TOKEN_EXPIRE_DAYS)
         to_encode.update({"exp": expire})
         encoded_jwt = jwt.encode(to_encode, self.config.REFRESH_SECRET_KEY, algorithm=self.config.ALGORITHM)
         return encoded_jwt, expire

@@ -229,11 +229,12 @@ class ChatScreen(ft.UserControl):
             if existing_message:
                 # Update existing message
                 self.update_message_in_list(existing_message, message)
-            elif message['user']['id'] != self.current_user_id:
-                # Add new message
+            else:
+                # Add new message regardless of who sent it
                 self.add_message_to_list(message)
 
-            self.update()
+            self.scroll_to_bottom()
+            self.page.update()
 
             # Mark the new message as read if it's not from the current user
             if message['user']['id'] != self.current_user_id:
@@ -305,15 +306,14 @@ class ChatScreen(ft.UserControl):
 
     def send_message(self, e):
         """
-        Sends a new message and adds it to the message list.
+        Sends a new message.
         """
         if self.message_input.value:
             self.logger.info(f"Sending new message in chat ID {self.chat_id}")
             response = self.chat_app.api_client.send_message(self.chat_id, self.message_input.value)
             if response.success:
                 self.message_input.value = ""
-                self.add_message_to_list(response.data)
-                self.update()
+                self.message_input.update()
                 self.logger.info(f"Message sent successfully in chat ID {self.chat_id}")
             else:
                 self.chat_app.show_error_dialog("Error Sending Message", f"Failed to send message: {response.error}")
@@ -420,6 +420,10 @@ class ChatScreen(ft.UserControl):
 
         self.logger.info(f"Added message (ID: {message['id']}) to the message list for chat ID {self.chat_id}")
 
+    def scroll_to_bottom(self):
+        if len(self.message_list.controls) > 0:
+            self.message_list.scroll_to(offset=-1, duration=300, curve=ft.AnimationCurve.EASE_OUT)
+
     def mark_message_as_read(self, message_id):
         """
         Marks a single message as read.
@@ -461,20 +465,20 @@ class ChatScreen(ft.UserControl):
         )
 
         for status in updated_message['statuses']:
+            reader_name = next(
+                (member['username'] for member in self.chat_app.api_client.get_chat(self.chat_id).data['members'] if
+                 member['id'] == status['user_id']), "Unknown")
+
             if status['is_read']:
                 read_time = datetime.fromisoformat(status['read_at']) if status['read_at'] else None
                 formatted_time = read_time.strftime("%Y-%m-%d %H:%M:%S") if read_time else "Unknown"
-                reader_name = next(
-                    (member['username'] for member in self.chat_app.api_client.get_chat(self.chat_id).data['members'] if
-                     member['id'] == status['user_id']), "Unknown")
                 read_status_list.controls.append(
                     ft.Text(f"{reader_name}: {formatted_time}", style=ft.TextThemeStyle.BODY_SMALL)
                 )
-
-        if not any(status['is_read'] for status in updated_message['statuses']):
-            read_status_list.controls.append(
-                ft.Text("No one has read this message yet.", style=ft.TextThemeStyle.BODY_SMALL)
-            )
+            else:
+                read_status_list.controls.append(
+                    ft.Text(f"{reader_name}: Unread", style=ft.TextThemeStyle.BODY_SMALL)
+                )
 
         read_status_container = ft.Container(
             content=ft.Column([
