@@ -1,7 +1,8 @@
 # app/api/messages.py
 from typing import List, Optional
 
-from app.api.dependencies import get_message_interactor, get_current_active_user, get_event_dispatcher
+from app.api.dependencies import get_message_interactor, get_current_active_user, get_event_dispatcher, \
+    get_chat_interactor
 from app.domain import schemas
 from app.domain.events import MessageCreated, MessageDeleted, MessageUpdated, MessageStatusUpdated, UnreadCountUpdated
 from app.infrastructure.event_dispatcher import EventDispatcher
@@ -16,6 +17,7 @@ def create_router():
     async def create_message(
             message: schemas.MessageCreate,
             message_interactor: MessageInteractor = Depends(get_message_interactor),
+            chat_interactor: MessageInteractor = Depends(get_chat_interactor),
             current_user: schemas.User = Depends(get_current_active_user),
             event_dispatcher: EventDispatcher = Depends(get_event_dispatcher)
     ):
@@ -37,7 +39,7 @@ def create_router():
             is_deleted=db_message.is_deleted
         ))
 
-        unread_counts = await message_interactor.get_unread_counts_for_chat_members(db_message.chat_id, current_user.id)
+        unread_counts = await chat_interactor.get_unread_counts_for_chat_members(db_message.chat_id, current_user.id)
         for user_id, unread_count in unread_counts.items():
             await event_dispatcher.dispatch(UnreadCountUpdated(
                 chat_id=db_message.chat_id,
@@ -119,6 +121,7 @@ def create_router():
             message_id: int,
             status_update: schemas.MessageStatusUpdate,
             message_interactor: MessageInteractor = Depends(get_message_interactor),
+            chat_interactor: MessageInteractor = Depends(get_chat_interactor),
             current_user: schemas.User = Depends(get_current_active_user),
             event_dispatcher: EventDispatcher = Depends(get_event_dispatcher)
     ):
@@ -141,7 +144,7 @@ def create_router():
             read_at=message_status.read_at
         ))
 
-        unread_count = await message_interactor.get_unread_messages_count(updated_message.chat_id, current_user.id)
+        unread_count = await chat_interactor.get_unread_messages_count(updated_message.chat_id, current_user.id)
 
         await event_dispatcher.dispatch(UnreadCountUpdated(
             chat_id=updated_message.chat_id,

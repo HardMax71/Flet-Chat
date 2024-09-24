@@ -46,9 +46,3 @@ class MessageInteractor:
             await self.uow.commit()
             return schemas.Message.model_validate(deleted_message)
         return None
-
-    async def get_unread_counts_for_chat_members(self, chat_id: int, current_user_id: int) -> Dict[int, int]:
-        return await self.message_gateway.get_unread_counts_for_chat_members(chat_id, current_user_id)
-
-    async def get_unread_messages_count(self, chat_id: int, user_id: int) -> int:
-        return await self.message_gateway.get_unread_messages_count(chat_id, user_id)

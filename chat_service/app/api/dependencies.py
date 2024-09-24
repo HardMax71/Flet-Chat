@@ -16,8 +16,6 @@ from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.uow import UoWModel
-
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
@@ -93,11 +91,11 @@ async def get_token_interactor(
 
 
 async def get_current_user(
-    token: str = Depends(oauth2_scheme),
-    security_service: SecurityService = Depends(get_security_service),
-    user_gateway: UserGateway = Depends(get_user_gateway),
-    token_gateway: TokenGateway = Depends(get_token_gateway),
-    uow: UnitOfWork = Depends(get_uow)
+        token: str = Depends(oauth2_scheme),
+        security_service: SecurityService = Depends(get_security_service),
+        user_gateway: UserGateway = Depends(get_user_gateway),
+        token_gateway: TokenGateway = Depends(get_token_gateway),
+        uow: UnitOfWork = Depends(get_uow)
 ) -> schemas.User:
     username = security_service.decode_access_token(token)
     if username is None:
@@ -120,7 +118,7 @@ async def get_current_user(
 
 
 async def get_current_active_user(
-    current_user: schemas.User = Depends(get_current_user)
+        current_user: schemas.User = Depends(get_current_user)
 ) -> schemas.User:
     if not current_user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")

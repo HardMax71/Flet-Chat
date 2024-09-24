@@ -1,7 +1,8 @@
 # app/main.py
+import logging
+import sys
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+
 from app.api import users, chats, messages, auth
 from app.config import AppConfig
 from app.infrastructure.database import Database
@@ -9,6 +10,9 @@ from app.infrastructure.event_dispatcher import EventDispatcher
 from app.infrastructure.event_handlers import EventHandlers
 from app.infrastructure.redis_config import RedisClient
 from app.infrastructure.security import SecurityService
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+
 
 class Application:
     def __init__(self, config: AppConfig, database: Database = None):
@@ -18,6 +22,7 @@ class Application:
         self.event_dispatcher = EventDispatcher()
         self.security_service = SecurityService(config)
         self.event_handlers = EventHandlers(self.redis_client)
+        self.logger = self.setup_logger()
 
         # Register event handlers
         self.event_dispatcher.register("MessageCreated", self.event_handlers.publish_message_created)
@@ -34,7 +39,24 @@ class Application:
         await self.database.disconnect()
         await self.redis_client.disconnect()
 
-    def create_app(self):
+    def setup_logger(self):
+        logger = logging.getLogger('ChatAPI')
+        logger.setLevel(logging.INFO)
+
+        c_handler = logging.StreamHandler(sys.stdout)
+        # file logs turned off for now
+        # f_handler = RotatingFileHandler('chat_api.log', maxBytes=10 * 1024 * 1024, backupCount=5)
+
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        c_handler.setFormatter(formatter)
+        # f_handler.setFormatter(formatter)
+
+        logger.addHandler(c_handler)
+        # logger.addHandler(f_handler)
+
+        return logger
+
+    def create_app(self) -> FastAPI:
         app = FastAPI(
             title=self.config.PROJECT_NAME,
             version=self.config.PROJECT_VERSION,
@@ -47,6 +69,7 @@ class Application:
         app.state.security_service = self.security_service
         app.state.event_dispatcher = self.event_dispatcher
         app.state.database = self.database
+        app.state.logger = self.logger
 
         # Create routers
         app.include_router(auth.create_router(), prefix=f"{self.config.API_V1_STR}/auth", tags=["auth"])
@@ -67,13 +90,19 @@ class Application:
 
         return app
 
+
 def create():
     config = AppConfig()
     application = Application(config)
-    return application.create_app()
+    app = application.create_app()
+    application.logger.info("Application created and configured")
+
+    return app
+
 
 app = create()
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

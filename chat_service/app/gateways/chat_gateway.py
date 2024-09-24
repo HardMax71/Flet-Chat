@@ -1,5 +1,5 @@
 # app/gateways/chat_gateway.py
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 from app.domain import models, schemas
 from app.infrastructure.uow import UnitOfWork, UoWModel
@@ -61,4 +61,7 @@ class ChatGateway:
         return [user.id for user in chat.members]
 
     async def get_unread_messages_count(self, chat_id: int, user_id: int) -> int:
-        return await self.uow.mappers[models.Message].get_unread_messages_count(chat_id, user_id)
+        return await self.uow.mappers[models.Chat].get_unread_messages_count(chat_id, user_id)
+
+    async def get_unread_counts_for_chat_members(self, chat_id: int, current_user_id: int) -> Dict[int, int]:
+        return await self.uow.mappers[models.Chat].get_unread_counts_for_chat_members(chat_id, current_user_id)
