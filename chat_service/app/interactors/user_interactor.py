@@ -1,7 +1,7 @@
 # app/interactors/user_interactor.py
 from typing import List, Optional
 
-from app.domain import schemas
+from app.domain import schemas, models
 from app.gateways.user_gateway import UserGateway
 from app.infrastructure.security import SecurityService
 from app.infrastructure.uow import UnitOfWork, UoWModel
@@ -14,24 +14,24 @@ class UserInteractor:
         self.user_gateway = user_gateway
 
     async def get_user(self, user_id: int) -> Optional[schemas.User]:
-        user = await self.user_gateway.get_user(user_id)
-        return schemas.User.model_validate(user) if user else None
+        user: Optional[UoWModel] = await self.user_gateway.get_user(user_id)
+        return schemas.User.model_validate(user._model) if user else None
 
     async def get_user_by_username(self, username: str) -> Optional[schemas.User]:
-        user = await self.user_gateway.get_by_username(username)
-        return schemas.User.model_validate(user) if user else None
+        user: Optional[UoWModel] = await self.user_gateway.get_by_username(username)
+        return schemas.User.model_validate(user._model) if user else None
 
     async def get_users(self, skip: int = 0, limit: int = 100, username: Optional[str] = None) -> List[schemas.User]:
-        users = await self.user_gateway.get_all(skip, limit, username)
-        return [schemas.User.model_validate(user) for user in users]
+        users: List[UoWModel] = await self.user_gateway.get_all(skip, limit, username)
+        return [schemas.User.model_validate(user._model) for user in users]
 
     async def create_user(self, user: schemas.UserCreate) -> schemas.User:
-        new_user = await self.user_gateway.create_user(user, self.security_service)
+        new_user: models.User = await self.user_gateway.create_user(user, self.security_service)
         await self.uow.commit()
         return schemas.User.model_validate(new_user)
 
     async def update_user(self, user_id: int, user_update: schemas.UserUpdate) -> Optional[schemas.User]:
-        user = await self.user_gateway.get_user(user_id)
+        user: Optional[UoWModel] = await self.user_gateway.get_user(user_id)
         if not user:
             return None
         for key, value in user_update.model_dump(exclude_unset=True).items():
@@ -40,24 +40,24 @@ class UserInteractor:
             else:
                 setattr(user, key, value)
         await self.uow.commit()
-        return schemas.User.model_validate(user)
+        return schemas.User.model_validate(user._model)
 
     async def delete_user(self, user_id: int) -> bool:
-        user = await self.user_gateway.get_user(user_id)
+        user: Optional[UoWModel] = await self.user_gateway.get_user(user_id)
         if not user:
             return False
-        self.uow.register_deleted(user)
+        self.uow.register_deleted(user._model)
         await self.uow.commit()
         return True
 
     async def search_users(self, query: str, current_user_id: int) -> List[schemas.User]:
-        users = await self.user_gateway.search_users(query, current_user_id)
-        return [schemas.User.model_validate(user) for user in users]
+        users: List[UoWModel] = await self.user_gateway.search_users(query, current_user_id)
+        return [schemas.User.model_validate(user._model) for user in users]
 
-    async def verify_user_password(self, username: str, password: str) -> Optional[UoWModel]:
-        user = await self.user_gateway.get_by_username(username)
+    async def verify_user_password(self, username: str, password: str) -> Optional[schemas.User]:
+        user: Optional[UoWModel] = await self.user_gateway.get_by_username(username)
         if not user:
             return None
         if await self.user_gateway.verify_password(user, password, self.security_service):
-            return user
+            return schemas.User.model_validate(user._model)
         return None

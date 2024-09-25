@@ -1,28 +1,54 @@
 # app/gateways/token_gateway.py
 from typing import Optional
+
 from app.domain import models, schemas
+from app.infrastructure.data_mappers import TokenMapper
 from app.infrastructure.uow import UnitOfWork, UoWModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 
 class TokenGateway:
-    def __init__(self, uow: UnitOfWork):
+    def __init__(self, session: AsyncSession, uow: UnitOfWork):
+        self.session = session
         self.uow = uow
+        uow.mappers[models.Token] = TokenMapper(session)
 
-    async def create_token(self, token: schemas.TokenCreate) -> UoWModel:
-        db_token = models.Token(**token.model_dump())
-        return self.uow.register_new(db_token)
+    async def upsert_token(self, token: schemas.TokenCreate) -> UoWModel:
+        stmt = select(models.Token).filter(models.Token.user_id == token.user_id)
+        result = await self.session.execute(stmt)
+        existing_token = result.scalar_one_or_none()
+
+        if existing_token:
+            for key, value in token.model_dump().items():
+                setattr(existing_token, key, value)
+            self.uow.register_dirty(existing_token)
+            return UoWModel(existing_token, self.uow)
+        else:
+            new_token = models.Token(**token.model_dump())
+            return self.uow.register_new(new_token)
 
     async def get_by_user_id(self, user_id: int) -> Optional[UoWModel]:
-        token = await self.uow.mappers[models.Token].get_by_user_id(user_id)
+        stmt = select(models.Token).filter(models.Token.user_id == user_id)
+        result = await self.session.execute(stmt)
+        token = result.scalar_one_or_none()
         return UoWModel(token, self.uow) if token else None
 
     async def get_by_access_token(self, access_token: str) -> Optional[UoWModel]:
-        token = await self.uow.mappers[models.Token].get_by_access_token(access_token)
+        stmt = select(models.Token).filter(models.Token.access_token == access_token)
+        result = await self.session.execute(stmt)
+        token = result.scalar_one_or_none()
         return UoWModel(token, self.uow) if token else None
 
     async def get_by_refresh_token(self, refresh_token: str) -> Optional[UoWModel]:
-        token = await self.uow.mappers[models.Token].get_by_refresh_token(refresh_token)
+        stmt = select(models.Token).filter(models.Token.refresh_token == refresh_token)
+        result = await self.session.execute(stmt)
+        token = result.scalar_one_or_none()
         return UoWModel(token, self.uow) if token else None
 
-    async def update_token(self, token: models.Token) -> UoWModel:
-        await self.uow.mappers[models.Token].update(token)
-        return UoWModel(token, self.uow)
+    async def delete_token_by_access_token(self, access_token: str) -> bool:
+        token = await self.get_by_access_token(access_token)
+        if token:
+            self.uow.register_deleted(token._model)
+            return True
+        return False

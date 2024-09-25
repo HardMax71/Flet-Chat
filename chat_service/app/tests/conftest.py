@@ -2,19 +2,23 @@
 
 import random
 import string
+
 import pytest
-from sqlalchemy.pool import StaticPool
+from app.api import dependencies
 from app.config import AppConfig
-from app.domain import models
-from app.infrastructure.database import Base, Database
+from app.domain import schemas
+from app.gateways.token_gateway import TokenGateway
+from app.gateways.user_gateway import UserGateway
+from app.infrastructure.database import Database
 from app.infrastructure.security import SecurityService
+from app.infrastructure.uow import UnitOfWork
 from app.main import Application
 from fakeredis import aioredis
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
-from app.infrastructure.uow import init_uow, UnitOfWork
-from app.api import dependencies
+from sqlalchemy.pool import StaticPool
+
 
 @pytest.fixture(scope="function")
 def app_config(tmp_path):
@@ -36,6 +40,7 @@ def app_config(tmp_path):
         REFRESH_TOKEN_EXPIRE_DAYS=7,
     )
 
+
 @pytest.fixture(scope="function")
 async def mock_redis():
     """Provide a fake Redis client for testing."""
@@ -43,6 +48,7 @@ async def mock_redis():
     yield redis
     await redis.flushall()
     await redis.aclose()
+
 
 @pytest.fixture(scope="function")
 async def engine(app_config):
@@ -59,6 +65,7 @@ async def engine(app_config):
     yield engine
     await engine.dispose()
 
+
 @pytest.fixture(scope="function")
 async def db_session(engine):
     """Provide a SQLAlchemy session for testing."""
@@ -68,10 +75,12 @@ async def db_session(engine):
     async with TestingSessionLocal() as session:
         yield session
 
+
 @pytest.fixture(scope="function")
-async def uow(db_session):
+async def uow():
     """Provide a UnitOfWork instance for testing."""
-    return init_uow(db_session)
+    return UnitOfWork()
+
 
 @pytest.fixture(scope="function")
 async def override_get_db(db_session):
@@ -81,6 +90,7 @@ async def override_get_db(db_session):
         yield db_session
 
     return _override_get_db
+
 
 @pytest.fixture(scope="function")
 async def app(app_config, mock_redis, engine):
@@ -94,6 +104,7 @@ async def app(app_config, mock_redis, engine):
 
     return app_instance
 
+
 @pytest.fixture(scope="function")
 async def app_with_db(app, override_get_db):
     """Override dependencies to use the test database session."""
@@ -101,45 +112,47 @@ async def app_with_db(app, override_get_db):
     yield app
     app.dependency_overrides.clear()
 
+
 @pytest.fixture(scope="function")
 async def client(app_with_db):
     """Provide an HTTP client with the test app."""
     async with AsyncClient(app=app_with_db, base_url="http://test") as ac:
         yield ac
 
+
 @pytest.fixture(scope="function")
-async def test_user(db_session, app_config):
+async def test_user(db_session, app_config, uow):
     """Create a test user in the database."""
     random_string = ''.join(random.choices(string.ascii_lowercase + string.digits, k=10))
     security_service = SecurityService(app_config)
-    user = models.User(
+    user_create = schemas.UserCreate(
         username=f"testuser_{random_string}",
         email=f"testuser_{random_string}@example.com",
-        hashed_password=security_service.get_password_hash("testpassword"),
-        is_active=True,  # Ensure the user is active
+        password="testpassword"
     )
-    db_session.add(user)
-    await db_session.commit()
-    await db_session.refresh(user)
+    user_gateway = UserGateway(db_session, uow)
+    user = await user_gateway.create_user(user_create, security_service)
+    await uow.commit()
     return user
 
+
 @pytest.fixture(scope="function")
-async def test_user2(db_session, app_config):
+async def test_user2(db_session, app_config, uow):
     """Create a second test user in the database."""
     security_service = SecurityService(app_config)
-    user = models.User(
+    user_create = schemas.UserCreate(
         username=f"testuser2_{random.randint(1, 1000)}",
         email=f"testuser2_{random.randint(1, 1000)}@example.com",
-        hashed_password=security_service.get_password_hash("testpassword2"),
-        is_active=True,  # Ensure the user is active
+        password="testpassword2"
     )
-    db_session.add(user)
-    await db_session.commit()
-    await db_session.refresh(user)
+    user_gateway = UserGateway(db_session, uow)
+    user = await user_gateway.create_user(user_create, security_service)
+    await uow.commit()
     return user
 
+
 @pytest.fixture(scope="function")
-async def auth_header(client, test_user, uow):
+async def auth_header(client, test_user, db_session, uow):
     """Provide an authorization header for authenticated requests."""
     response = await client.post(
         "/api/v1/auth/login",
@@ -150,7 +163,8 @@ async def auth_header(client, test_user, uow):
     assert access_token is not None, "Access token was not returned in the response"
 
     # Verify token is stored in the database
-    token = await uow.mappers[models.Token].get_by_access_token(access_token)
+    token_gateway = TokenGateway(db_session, uow)
+    token = await token_gateway.get_by_access_token(access_token)
     assert token is not None, "Access token was not stored in the database"
 
     return {"Authorization": f"Bearer {access_token}"}

@@ -40,28 +40,14 @@ def create_router():
             data={"sub": user.username}
         )
 
-        existing_token = await token_interactor.get_token_by_user_id(user.id)
-        if existing_token:
-            # Update existing token
-            token_data = schemas.Token(
-                id=existing_token.id,
-                access_token=access_token,
-                refresh_token=refresh_token,
-                token_type="bearer",
-                expires_at=access_expire,
-                user_id=user.id
-            )
-            token = await token_interactor.update_token(token_data)
-        else:
-            # Create new token
-            token_create = schemas.TokenCreate(
-                access_token=access_token,
-                refresh_token=refresh_token,
-                token_type="bearer",
-                expires_at=access_expire,
-                user_id=user.id
-            )
-            token = await token_interactor.create_token(token_create)
+        token_create = schemas.TokenCreate(
+            access_token=access_token,
+            refresh_token=refresh_token,
+            token_type="bearer",
+            expires_at=access_expire,
+            user_id=user.id
+        )
+        token = await token_interactor.upsert_token(token_create)
 
         return schemas.TokenResponse(
             access_token=token.access_token,
@@ -122,14 +108,14 @@ def create_router():
             data={"sub": user.username}
         )
 
-        updated_token = await token_interactor.update_token(schemas.Token(
-            id=token.id,
+        token_create = schemas.TokenCreate(
             access_token=new_access_token,
             refresh_token=new_refresh_token,
             token_type="bearer",
             expires_at=new_access_token_expires,
             user_id=user.id
-        ))
+        )
+        updated_token = await token_interactor.upsert_token(token_create)
 
         return schemas.TokenResponse(
             access_token=updated_token.access_token,

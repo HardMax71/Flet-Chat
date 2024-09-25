@@ -1,9 +1,7 @@
 # app/infrastructure/uow.py
 
 from typing import Dict, Any, Type
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.infrastructure.data_mappers import UserMapper, ChatMapper, MessageMapper, TokenMapper
-from app.domain import models
+
 
 class UoWModel:
     def __init__(self, model: Any, uow: 'UnitOfWork'):
@@ -17,6 +15,7 @@ class UoWModel:
         setattr(self._model, key, value)
         self._uow.register_dirty(self._model)
 
+
 class UnitOfWork:
     def __init__(self):
         self.dirty: Dict[int, Any] = {}
@@ -25,6 +24,8 @@ class UnitOfWork:
         self.mappers: Dict[Type, Any] = {}
 
     def register_dirty(self, model: Any):
+        if isinstance(model, UoWModel):
+            model = model._model
         model_id = id(model)
         if model_id not in self.new:
             self.dirty[model_id] = model
@@ -34,13 +35,18 @@ class UnitOfWork:
             model = model._model
         model_id = id(model)
         if model_id in self.new:
-            self.new.pop(model_id)
+            # If the model is new, just update it in the new dict
+            self.new[model_id] = model
         elif model_id in self.dirty:
+            # If model was supposed to be updated, remove it from dirty
             self.dirty.pop(model_id)
-        else:
-            self.deleted[model_id] = model
+
+        # Always add to deleted, regardless of previous state
+        self.deleted[model_id] = model
 
     def register_new(self, model: Any):
+        if isinstance(model, UoWModel):
+            model = model._model
         model_id = id(model)
         self.new[model_id] = model
         return UoWModel(model, self)
@@ -61,13 +67,3 @@ class UnitOfWork:
         self.dirty.clear()
         self.new.clear()
         self.deleted.clear()
-
-def init_uow(session: AsyncSession):
-    uow = UnitOfWork()
-    uow.mappers = {
-        models.User: UserMapper(session),
-        models.Chat: ChatMapper(session),
-        models.Message: MessageMapper(session),
-        models.Token: TokenMapper(session),
-    }
-    return uow

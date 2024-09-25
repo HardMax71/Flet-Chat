@@ -7,7 +7,7 @@ from app.gateways.token_gateway import TokenGateway
 from app.gateways.user_gateway import UserGateway
 from app.infrastructure.event_dispatcher import EventDispatcher
 from app.infrastructure.security import SecurityService
-from app.infrastructure.uow import init_uow, UnitOfWork
+from app.infrastructure.uow import UnitOfWork
 from app.interactors.chat_interactor import ChatInteractor
 from app.interactors.message_interactor import MessageInteractor
 from app.interactors.token_interactor import TokenInteractor
@@ -41,24 +41,24 @@ async def get_session(request: Request) -> AsyncSession:
             raise
 
 
-async def get_uow(session: AsyncSession = Depends(get_session)) -> UnitOfWork:
-    return init_uow(session)
+async def get_uow() -> UnitOfWork:
+    return UnitOfWork()
 
 
-async def get_user_gateway(uow: UnitOfWork = Depends(get_uow)):
-    return UserGateway(uow)
+async def get_user_gateway(session: AsyncSession = Depends(get_session), uow: UnitOfWork = Depends(get_uow)):
+    return UserGateway(session, uow)
 
 
-async def get_chat_gateway(uow: UnitOfWork = Depends(get_uow)):
-    return ChatGateway(uow)
+async def get_chat_gateway(session: AsyncSession = Depends(get_session), uow: UnitOfWork = Depends(get_uow)):
+    return ChatGateway(session, uow)
 
 
-async def get_message_gateway(uow: UnitOfWork = Depends(get_uow)):
-    return MessageGateway(uow)
+async def get_message_gateway(session: AsyncSession = Depends(get_session), uow: UnitOfWork = Depends(get_uow)):
+    return MessageGateway(session, uow)
 
 
-async def get_token_gateway(uow: UnitOfWork = Depends(get_uow)):
-    return TokenGateway(uow)
+async def get_token_gateway(session: AsyncSession = Depends(get_session), uow: UnitOfWork = Depends(get_uow)):
+    return TokenGateway(session, uow)
 
 
 async def get_user_interactor(
