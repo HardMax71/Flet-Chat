@@ -6,9 +6,10 @@ from datetime import datetime
 import flet as ft
 
 
-class ChatScreen(ft.UserControl):
+class ChatScreen(ft.Column):
     def __init__(self, chat_app, chat_id):
         super().__init__()
+        self.isolated = True
         self.chat_app = chat_app
         self.chat_id = chat_id
         self.current_user_id = None

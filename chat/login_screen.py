@@ -1,9 +1,10 @@
 import logging
 import flet as ft
 
-class LoginScreen(ft.UserControl):
+class LoginScreen(ft.Column):
     def __init__(self, chat_app):
         super().__init__()
+        self.isolated = True
         self.chat_app = chat_app
 
         # Configure logging

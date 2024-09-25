@@ -4,9 +4,10 @@ import logging
 import flet as ft
 
 
-class ChatListScreen(ft.UserControl):
+class ChatListScreen(ft.Column):
     def __init__(self, chat_app):
         super().__init__()
+        self.isolated = True
         self.chat_app = chat_app
         self.chat_subscriptions = {}  # Keep track of subscribed chats
         self.current_user_id = None
