@@ -1,11 +1,11 @@
-# app/tests/unit/test_redis_config.py
+# app/tests/unit/test_redis_client.py
 
 import logging
 from unittest.mock import AsyncMock, patch
 
 import pytest
 import redis
-from app.infrastructure.redis_config import RedisClient
+from app.infrastructure.redis_client import RedisClient
 
 
 @pytest.fixture

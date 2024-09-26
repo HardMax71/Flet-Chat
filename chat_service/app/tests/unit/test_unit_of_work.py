@@ -103,7 +103,7 @@ async def test_register_deleted_model_removes_from_new_and_dirty(uow):
     uow.register_deleted(new_user)
     uow.register_deleted(dirty_user)
 
-    assert id(new_user) in uow.new, "Deleted new model should remain in 'new'"
+    assert id(new_user) not in uow.new, "Deleted new model shouldn't remain in 'new'"
     assert id(dirty_user) not in uow.dirty, "Deleted dirty model should be removed from 'dirty'"
     assert id(new_user) in uow.deleted, "Deleted new model should be added to 'deleted'"
     assert id(dirty_user) in uow.deleted, "Deleted dirty model should be added to 'deleted'"
@@ -236,5 +236,5 @@ async def test_delete_new_model(uow):
 
     uow.register_deleted(uow_model)
 
-    assert id(user) in uow.new, "Deleted new model should remain in 'new'"
+    assert id(user) not in uow.new, "Deleted new model shouldn't remain in 'new'"
     assert id(user) in uow.deleted, "Deleted new model should be in 'deleted'"

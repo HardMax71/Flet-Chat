@@ -35,8 +35,8 @@ class UnitOfWork:
             model = model._model
         model_id = id(model)
         if model_id in self.new:
-            # If the model is new, just update it in the new dict
-            self.new[model_id] = model
+            # If the model is new, just delete it
+            self.new.pop(model_id)
         elif model_id in self.dirty:
             # If model was supposed to be updated, remove it from dirty
             self.dirty.pop(model_id)

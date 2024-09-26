@@ -1,10 +1,10 @@
 # app/api/dependencies.py
 from app.config import AppConfig
-from app.domain import schemas
 from app.gateways.chat_gateway import ChatGateway
 from app.gateways.message_gateway import MessageGateway
 from app.gateways.token_gateway import TokenGateway
 from app.gateways.user_gateway import UserGateway
+from app.infrastructure import schemas
 from app.infrastructure.event_dispatcher import EventDispatcher
 from app.infrastructure.security import SecurityService
 from app.infrastructure.uow import UnitOfWork
@@ -94,8 +94,7 @@ async def get_current_user(
         token: str = Depends(oauth2_scheme),
         security_service: SecurityService = Depends(get_security_service),
         user_gateway: UserGateway = Depends(get_user_gateway),
-        token_gateway: TokenGateway = Depends(get_token_gateway),
-        uow: UnitOfWork = Depends(get_uow)
+        token_gateway: TokenGateway = Depends(get_token_gateway)
 ) -> schemas.User:
     username = security_service.decode_access_token(token)
     if username is None:
@@ -113,7 +112,6 @@ async def get_current_user(
             detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    await uow.commit()  # Commit the transaction to ensure the user is properly loaded
     return schemas.User.model_validate(user_model)
 
 

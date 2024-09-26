@@ -1,8 +1,8 @@
 # app/interactors/message_interactor.py
-from typing import List, Optional, Dict
+from typing import List, Optional
 
-from app.domain import schemas
 from app.gateways.message_gateway import MessageGateway
+from app.infrastructure import schemas
 from app.infrastructure.uow import UnitOfWork
 
 
@@ -20,7 +20,8 @@ class MessageInteractor:
         messages = await self.message_gateway.get_all(chat_id, user_id, skip, limit, content)
         return [schemas.Message.model_validate(message) for message in messages]
 
-    async def update_message_status(self, message_id: int, user_id: int, status_update: schemas.MessageStatusUpdate) -> Optional[schemas.Message]:
+    async def update_message_status(self, message_id: int, user_id: int, status_update: schemas.MessageStatusUpdate) -> \
+    Optional[schemas.Message]:
         updated_message = await self.message_gateway.update_message_status(message_id, user_id, status_update)
         if updated_message:
             await self.uow.commit()

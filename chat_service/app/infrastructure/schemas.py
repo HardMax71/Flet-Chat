@@ -1,4 +1,4 @@
-# app/domain/schemas.py
+# app/infrastructure/schemas.py
 from datetime import datetime
 from typing import List, Optional
 
@@ -67,6 +67,7 @@ class MessageCreate(MessageBase):
 class MessageUpdate(BaseModel):
     content: str
 
+
 class MessageStatus(BaseModel):
     user_id: int
     is_read: bool
@@ -74,8 +75,10 @@ class MessageStatus(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class MessageStatusUpdate(BaseModel):
     is_read: bool = True
+
 
 class Message(MessageBase):
     id: int

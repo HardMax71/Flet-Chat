@@ -5,7 +5,7 @@ from datetime import timedelta
 from app.api.dependencies import get_security_service, get_user_interactor, get_token_interactor, get_config, \
     oauth2_scheme
 from app.config import AppConfig
-from app.domain import schemas
+from app.infrastructure import schemas
 from app.infrastructure.security import SecurityService
 from app.interactors.token_interactor import TokenInteractor
 from app.interactors.user_interactor import UserInteractor

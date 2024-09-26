@@ -2,7 +2,8 @@
 from datetime import datetime
 from typing import List, Optional
 
-from app.domain import models, schemas
+from app.domain import models
+from app.infrastructure import schemas
 from app.infrastructure.data_mappers import MessageMapper
 from app.infrastructure.uow import UnitOfWork, UoWModel
 from sqlalchemy import select

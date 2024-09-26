@@ -1,8 +1,9 @@
 # app/interactors/user_interactor.py
 from typing import List, Optional
 
-from app.domain import schemas, models
+from app.domain import models
 from app.gateways.user_gateway import UserGateway
+from app.infrastructure import schemas
 from app.infrastructure.security import SecurityService
 from app.infrastructure.uow import UnitOfWork, UoWModel
 

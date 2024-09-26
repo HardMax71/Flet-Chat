@@ -1,8 +1,8 @@
 # app/interactors/chat_interactor.py
 from typing import List, Optional, Dict
 
-from app.domain import schemas
 from app.gateways.chat_gateway import ChatGateway
+from app.infrastructure import schemas
 from app.infrastructure.uow import UnitOfWork
 
 

@@ -1,8 +1,8 @@
 # app/interactors/token_interactor.py
 from typing import Optional
 
-from app.domain import schemas
 from app.gateways.token_gateway import TokenGateway
+from app.infrastructure import schemas
 from app.infrastructure.uow import UnitOfWork
 
 

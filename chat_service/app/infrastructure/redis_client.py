@@ -1,4 +1,4 @@
-# app/infrastructure/redis_config.py
+# app/infrastructure/redis_client.py
 import redis.asyncio as redis
 import logging
 

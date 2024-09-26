@@ -3,8 +3,8 @@ from typing import List, Optional
 
 from app.api.dependencies import get_message_interactor, get_current_active_user, get_event_dispatcher, \
     get_chat_interactor
-from app.domain import schemas
 from app.domain.events import MessageCreated, MessageDeleted, MessageUpdated, MessageStatusUpdated, UnreadCountUpdated
+from app.infrastructure import schemas
 from app.infrastructure.event_dispatcher import EventDispatcher
 from app.interactors.message_interactor import MessageInteractor
 from fastapi import APIRouter, Depends, HTTPException, Query

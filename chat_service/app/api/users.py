@@ -1,9 +1,11 @@
 # app/api/users.py
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
-from app.domain import schemas
+
 from app.api.dependencies import get_user_interactor, get_current_active_user
+from app.infrastructure import schemas
 from app.interactors.user_interactor import UserInteractor
+from fastapi import APIRouter, Depends, HTTPException, Query
+
 
 def create_router():
     router = APIRouter()

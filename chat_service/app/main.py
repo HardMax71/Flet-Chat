@@ -8,7 +8,7 @@ from app.config import AppConfig
 from app.infrastructure.database import Database
 from app.infrastructure.event_dispatcher import EventDispatcher
 from app.infrastructure.event_handlers import EventHandlers
-from app.infrastructure.redis_config import RedisClient
+from app.infrastructure.redis_client import RedisClient
 from app.infrastructure.security import SecurityService
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse

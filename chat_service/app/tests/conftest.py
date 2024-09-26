@@ -6,15 +6,15 @@ import string
 import pytest
 from app.api import dependencies
 from app.config import AppConfig
-from app.domain import schemas
 from app.gateways.token_gateway import TokenGateway
 from app.gateways.user_gateway import UserGateway
+from app.infrastructure import schemas
 from app.infrastructure.database import Database
 from app.infrastructure.security import SecurityService
 from app.infrastructure.uow import UnitOfWork
 from app.main import Application
 from fakeredis import aioredis
-from httpx import AsyncClient
+from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -116,7 +116,7 @@ async def app_with_db(app, override_get_db):
 @pytest.fixture(scope="function")
 async def client(app_with_db):
     """Provide an HTTP client with the test app."""
-    async with AsyncClient(app=app_with_db, base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app_with_db), base_url="http://test") as ac:
         yield ac
 
 

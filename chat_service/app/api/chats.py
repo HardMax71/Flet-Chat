@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from app.api.dependencies import get_chat_interactor, get_user_interactor
 from app.api.dependencies import get_current_active_user
-from app.domain import schemas
+from app.infrastructure import schemas
 from app.interactors.chat_interactor import ChatInteractor
 from app.interactors.user_interactor import UserInteractor
 from fastapi import APIRouter, Depends, HTTPException
