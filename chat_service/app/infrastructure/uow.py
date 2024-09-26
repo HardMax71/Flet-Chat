@@ -13,7 +13,11 @@ class UoWModel:
 
     def __setattr__(self, key, value):
         setattr(self._model, key, value)
-        self._uow.register_dirty(self._model)
+        # if it's not a new model, register it as dirty,
+        # otherwise, it's already in the new models and doesn't need to be registered
+        # as dirty cause it doesnt exist in the database yet
+        if id(self._model) not in self._uow.new:
+            self._uow.register_dirty(self._model)
 
 
 class UnitOfWork:
@@ -35,8 +39,9 @@ class UnitOfWork:
             model = model._model
         model_id = id(model)
         if model_id in self.new:
-            # If the model is new, just delete it
+            # If the model is new, just delete it and go back
             self.new.pop(model_id)
+            return
         elif model_id in self.dirty:
             # If model was supposed to be updated, remove it from dirty
             self.dirty.pop(model_id)
@@ -58,12 +63,4 @@ class UnitOfWork:
             await self.mappers[type(model)].update(model)
         for model in self.deleted.values():
             await self.mappers[type(model)].delete(model)
-        self.clear()
 
-    async def rollback(self):
-        self.clear()
-
-    def clear(self):
-        self.dirty.clear()
-        self.new.clear()
-        self.deleted.clear()

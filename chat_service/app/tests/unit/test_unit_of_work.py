@@ -91,22 +91,20 @@ async def test_register_deleted_model(uow):
 
 @pytest.mark.asyncio
 async def test_register_deleted_model_removes_from_new_and_dirty(uow):
-    """
-    Test that registering a model for deletion removes it from 'new' and 'dirty'.
-    """
     new_user = models.User(username="newuser", email="new@example.com")
-    uow.register_new(new_user)
+    uow_model = uow.register_new(new_user)
 
     dirty_user = models.User(username="dirtyuser", email="dirty@example.com")
     uow.register_dirty(dirty_user)
 
-    uow.register_deleted(new_user)
+    uow.register_deleted(uow_model)
     uow.register_deleted(dirty_user)
 
     assert id(new_user) not in uow.new, "Deleted new model shouldn't remain in 'new'"
     assert id(dirty_user) not in uow.dirty, "Deleted dirty model should be removed from 'dirty'"
-    assert id(new_user) in uow.deleted, "Deleted new model should be added to 'deleted'"
     assert id(dirty_user) in uow.deleted, "Deleted dirty model should be added to 'deleted'"
+    # New models are not added to deleted when removed
+    assert id(new_user) not in uow.deleted, "Deleted new model should not be in 'deleted'"
 
 
 @pytest.mark.asyncio
@@ -170,43 +168,7 @@ async def test_commit_handles_multiple_operations(uow):
 
 
 @pytest.mark.asyncio
-async def test_rollback(uow):
-    """
-    Test that rollback clears all tracked changes without calling mapper methods.
-    """
-    user_new = models.User(username="newuser", email="new@example.com")
-    uow.register_new(user_new)
-
-    user_existing = models.User(username="existinguser", email="existing@example.com")
-    uow.register_dirty(user_existing)
-
-    user_to_delete = models.User(username="deleteuser", email="delete@example.com")
-    uow.register_deleted(user_to_delete)
-
-    # Before rollback
-    assert len(uow.new) == 1, "'new' should have one model before rollback"
-    assert len(uow.dirty) == 1, "'dirty' should have one model before rollback"
-    assert len(uow.deleted) == 1, "'deleted' should have one model before rollback"
-
-    # Perform rollback
-    await uow.rollback()
-
-    # After rollback, all should be cleared
-    assert len(uow.new) == 0, "'new' should be empty after rollback"
-    assert len(uow.dirty) == 0, "'dirty' should be empty after rollback"
-    assert len(uow.deleted) == 0, "'deleted' should be empty after rollback"
-
-    # Ensure mappers' methods were not called
-    uow.mappers[models.User].insert.assert_not_awaited()
-    uow.mappers[models.User].update.assert_not_awaited()
-    uow.mappers[models.User].delete.assert_not_awaited()
-
-
-@pytest.mark.asyncio
 async def test_register_uowmodel(uow):
-    """
-    Test that registering a UoWModel works correctly.
-    """
     user = models.User(username="testuser", email="test@example.com")
     uow_model = uow.register_new(user)
 
@@ -216,10 +178,11 @@ async def test_register_uowmodel(uow):
     # Changing a property of a new model should not mark it as dirty
     uow_model.email = "updated@example.com"
     assert id(user) in uow.new, "Model should still be in 'new' after property change"
-    assert id(user) not in uow.dirty, "Model should not be marked as dirty when it's new"
+    assert id(user) not in uow.dirty, "New model should not be marked as dirty when changed"
 
-    # Simulate commit
-    await uow.commit()
+    # Simulate commit (clear the new dictionary)
+    uow.new.clear()
+    uow.dirty.clear()
 
     # Now changing a property should mark it as dirty
     uow_model.username = "updateduser"
@@ -228,13 +191,10 @@ async def test_register_uowmodel(uow):
 
 @pytest.mark.asyncio
 async def test_delete_new_model(uow):
-    """
-    Test deleting a new model.
-    """
     user = models.User(username="testuser", email="test@example.com")
     uow_model = uow.register_new(user)
 
     uow.register_deleted(uow_model)
 
     assert id(user) not in uow.new, "Deleted new model shouldn't remain in 'new'"
-    assert id(user) in uow.deleted, "Deleted new model should be in 'deleted'"
+    assert id(user) not in uow.deleted, "Deleted new model should not be in 'deleted'"
