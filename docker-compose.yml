@@ -7,10 +7,11 @@ services:
     image: postgres:${POSTGRES_VERSION}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./chat_service/init.sql:/docker-entrypoint-initdb.d/init.sql
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=postgres
+      - POSTGRES_DB=${DB_NAME}
     ports:
       - "${DB_PORT}:5432"
     networks:
@@ -28,7 +29,6 @@ services:
         PYTHON_VERSION: ${PYTHON_VERSION}
     volumes:
       - ./chat_service:/app
-      - ./chat_service/init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "${APP_PORT}:${APP_PORT}"
     environment:
@@ -47,7 +47,7 @@ services:
     command: >
       sh -c "
             until pg_isready -h db -p 5432 -U postgres; do echo 'Waiting for database...'; sleep 2; done;
-            PGPASSWORD=password psql -U postgres -h db -f /docker-entrypoint-initdb.d/init.sql;
+            psql -U postgres -h db -d ${DB_NAME} -f /app/init.sql;
             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
             "
   

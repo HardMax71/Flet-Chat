@@ -57,7 +57,9 @@ class MessageGateway:
             )
             db_message.statuses.append(message_status)
 
-        return self.uow.register_new(db_message)
+        uow_message = self.uow.register_new(db_message)
+        await self.uow.commit()
+        return uow_message
 
     async def update_message(self, message_id: int, message_update: schemas.MessageUpdate, user_id: int) -> Optional[
         UoWModel]:
@@ -71,8 +73,10 @@ class MessageGateway:
         if message:
             message.content = message_update.content
             message.updated_at = datetime.utcnow()
+            uow_message = UoWModel(message, self.uow)
             self.uow.register_dirty(message)
-            return UoWModel(message, self.uow)
+            await self.uow.commit()
+            return uow_message
         return None
 
     async def delete_message(self, message_id: int, user_id: int) -> Optional[UoWModel]:
@@ -87,12 +91,14 @@ class MessageGateway:
             message.is_deleted = True
             message.content = "<This message has been deleted>"
             message.updated_at = datetime.utcnow()
+            uow_message = UoWModel(message, self.uow)
             self.uow.register_dirty(message)
-            return UoWModel(message, self.uow)
+            await self.uow.commit()
+            return uow_message
         return None
 
     async def update_message_status(self, message_id: int, user_id: int, status_update: schemas.MessageStatusUpdate) -> \
-            Optional[UoWModel]:
+    Optional[UoWModel]:
         stmt = select(models.Message).options(
             selectinload(models.Message.statuses)
         ).filter(models.Message.id == message_id)
@@ -113,6 +119,8 @@ class MessageGateway:
                     read_at=datetime.utcnow() if status_update.is_read else None
                 )
                 message.statuses.append(new_status)
+            uow_message = UoWModel(message, self.uow)
             self.uow.register_dirty(message)
-            return UoWModel(message, self.uow)
+            await self.uow.commit()
+            return uow_message
         return None

@@ -5,20 +5,22 @@ from contextlib import asynccontextmanager
 
 from app.api import users, chats, messages, auth
 from app.config import AppConfig
-from app.infrastructure.database import Database
+from app.infrastructure.database import create_database
 from app.infrastructure.event_dispatcher import EventDispatcher
 from app.infrastructure.event_handlers import EventHandlers
 from app.infrastructure.redis_client import RedisClient
 from app.infrastructure.security import SecurityService
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from sqlalchemy.ext.asyncio import create_async_engine
 
 
 class Application:
-    def __init__(self, config: AppConfig, database: Database = None):
+    def __init__(self, config: AppConfig):
         self.config = config
         self.logger = self.setup_logger()
-        self.database = database if database else Database(config.DATABASE_URL)
+        engine = create_async_engine(config.DATABASE_URL, echo=False)
+        self.database = create_database(engine)
         self.redis_client = RedisClient(config.REDIS_HOST, config.REDIS_PORT, self.logger)
         self.event_dispatcher = EventDispatcher()
         self.security_service = SecurityService(config)
@@ -84,10 +86,6 @@ class Application:
                 content={"message": f"An unexpected error occurred: {str(exc)}"}
             )
 
-        @app.get("/")
-        async def root():
-            return {"message": "Welcome to the Chat API"}
-
         return app
 
 
@@ -101,6 +99,12 @@ def create():
 
 
 app = create()
+
+
+@app.get("/")
+async def root():
+    return {"message": "Welcome to the Chat API"}
+
 
 if __name__ == "__main__":
     import uvicorn

@@ -37,11 +37,12 @@ class UserGateway:
         users = result.scalars().all()
         return [UoWModel(user, self.uow) for user in users]
 
-    async def create_user(self, user: schemas.UserCreate, security_service: SecurityService) -> models.User:
+    async def create_user(self, user: schemas.UserCreate, security_service: SecurityService) -> UoWModel:
         hashed_password = security_service.get_password_hash(user.password)
         db_user = models.User(**user.model_dump(exclude={'password'}), hashed_password=hashed_password)
-        self.uow.register_new(db_user)
-        return db_user
+        uow_user = self.uow.register_new(db_user)
+        await self.uow.commit()
+        return uow_user
 
     async def search_users(self, query: str, current_user_id: int) -> List[UoWModel]:
         stmt = select(models.User).filter(models.User.id != current_user_id, models.User.username.ilike(f'%{query}%'))
@@ -56,3 +57,16 @@ class UserGateway:
         hashed_password = security_service.get_password_hash(new_password)
         user._model.hashed_password = hashed_password
         self.uow.register_dirty(user._model)
+        await self.uow.commit()
+
+    async def delete_user(self, user_id: int) -> Optional[UoWModel]:
+        stmt = select(models.User).filter(models.User.id == user_id)
+        result = await self.session.execute(stmt)
+        user = result.scalar_one_or_none()
+
+        if user:
+            uow_user = UoWModel(user, self.uow)
+            self.uow.register_deleted(user)
+            await self.uow.commit()
+            return uow_user
+        return None

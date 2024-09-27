@@ -1,20 +1,14 @@
 # app/infrastructure/database.py
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from sqlalchemy.orm import declarative_base, sessionmaker
 from contextlib import asynccontextmanager
 
 Base = declarative_base()
 
 class Database:
-    def __init__(self, database_url: str = None, engine=None):
-        if engine:
-            self.engine = engine
-        elif database_url:
-            self.engine = create_async_engine(database_url, echo=False)
-        else:
-            raise ValueError("Either database_url or engine must be provided")
-
-        self.SessionLocal = sessionmaker(
+    def __init__(self, engine: AsyncEngine, session_factory: sessionmaker = None):
+        self.engine = engine
+        self.SessionLocal = session_factory or sessionmaker(
             self.engine, class_=AsyncSession, expire_on_commit=False
         )
 
@@ -34,3 +28,7 @@ class Database:
     async def get_session(self) -> AsyncSession:
         async with self.session() as session:
             yield session
+
+# Factory function to create Database instance
+def create_database(engine: AsyncEngine, session_factory: sessionmaker = None) -> Database:
+    return Database(engine, session_factory)

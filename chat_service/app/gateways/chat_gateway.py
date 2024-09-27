@@ -38,7 +38,9 @@ class ChatGateway:
         result = await self.session.execute(stmt)
         members = result.scalars().all()
         db_chat.members = members
-        return self.uow.register_new(db_chat)
+        uow_chat = self.uow.register_new(db_chat)
+        await self.uow.commit()
+        return uow_chat
 
     async def add_member(self, chat_id: int, user_id: int, current_user_id: int) -> Optional[UoWModel]:
         chat = await self.get_chat(chat_id, current_user_id)
@@ -50,7 +52,14 @@ class ChatGateway:
         if user:
             chat._model.members.append(user)
             self.uow.register_dirty(chat._model)
+            await self.uow.commit()
         return chat
+
+    async def delete_chat(self, chat_id: int, user_id: int) -> None:
+        chat = await self.get_chat(chat_id, user_id)
+        if chat:
+            self.uow.register_deleted(chat._model)
+            await self.uow.commit()
 
     async def remove_member(self, chat_id: int, user_id: int, current_user_id: int) -> bool:
         chat = await self.get_chat(chat_id, current_user_id)
@@ -58,6 +67,7 @@ class ChatGateway:
             return False
         chat._model.members = [m for m in chat._model.members if m.id != user_id]
         self.uow.register_dirty(chat._model)
+        await self.uow.commit()
         return True
 
     async def start_chat(self, current_user_id: int, other_user_id: int) -> Optional[UoWModel]:
@@ -68,7 +78,9 @@ class ChatGateway:
             return None
         db_chat = models.Chat(name=f"Chat between {members[0].username} and {members[1].username}")
         db_chat.members = members
-        return self.uow.register_new(db_chat)
+        uow_chat = self.uow.register_new(db_chat)
+        await self.uow.commit()
+        return uow_chat
 
     async def get_user_ids_in_chat(self, chat_id: int) -> List[int]:
         stmt = select(models.Chat).options(selectinload(models.Chat.members)).filter(models.Chat.id == chat_id)
@@ -80,21 +92,15 @@ class ChatGateway:
 
     async def get_unread_messages_count(self, chat_id: int, user_id: int) -> int:
         stmt = select(func.count(models.MessageStatus.id)).join(models.Message).filter(
-            models.Message.chat_id == chat_id,
-            models.MessageStatus.user_id == user_id,
-            models.MessageStatus.is_read == False
-        )
+            models.Message.chat_id == chat_id, models.MessageStatus.user_id == user_id,
+            models.MessageStatus.is_read == False)
         result = await self.session.execute(stmt)
         return result.scalar_one()
 
     async def get_unread_counts_for_chat_members(self, chat_id: int, current_user_id: int) -> Dict[int, int]:
-        stmt = select(
-            models.MessageStatus.user_id,
-            func.count(models.MessageStatus.id).label('unread_count')
-        ).join(models.Message).filter(
-            models.Message.chat_id == chat_id,
-            models.MessageStatus.is_read == False,
-            models.MessageStatus.user_id != current_user_id
-        ).group_by(models.MessageStatus.user_id)
+        stmt = select(models.MessageStatus.user_id, func.count(models.MessageStatus.id).label('unread_count')).join(
+            models.Message).filter(models.Message.chat_id == chat_id, models.MessageStatus.is_read == False,
+                                   models.MessageStatus.user_id != current_user_id).group_by(
+            models.MessageStatus.user_id)
         result = await self.session.execute(stmt)
         return {row.user_id: row.unread_count for row in result}

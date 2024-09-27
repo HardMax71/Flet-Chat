@@ -24,10 +24,13 @@ class TokenGateway:
             for key, value in token.model_dump().items():
                 setattr(existing_token, key, value)
             self.uow.register_dirty(existing_token)
-            return UoWModel(existing_token, self.uow)
+            uow_token = UoWModel(existing_token, self.uow)
         else:
             new_token = models.Token(**token.model_dump())
-            return self.uow.register_new(new_token)
+            uow_token = self.uow.register_new(new_token)
+
+        await self.uow.commit()
+        return uow_token
 
     async def get_by_user_id(self, user_id: int) -> Optional[UoWModel]:
         stmt = select(models.Token).filter(models.Token.user_id == user_id)
@@ -51,5 +54,6 @@ class TokenGateway:
         token = await self.get_by_access_token(access_token)
         if token:
             self.uow.register_deleted(token._model)
+            await self.uow.commit()
             return True
         return False

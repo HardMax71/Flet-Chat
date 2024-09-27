@@ -32,7 +32,7 @@ def get_event_dispatcher(request: Request) -> EventDispatcher:
 
 
 async def get_session(request: Request) -> AsyncSession:
-    async for session in request.app.state.database.get_session():
+    async with request.app.state.database.session() as session:
         try:
             yield session
             await session.commit()  # Commit the transaction
@@ -62,32 +62,28 @@ async def get_token_gateway(session: AsyncSession = Depends(get_session), uow: U
 
 
 async def get_user_interactor(
-        uow: UnitOfWork = Depends(get_uow),
         security_service: SecurityService = Depends(get_security_service),
         user_gateway: UserGateway = Depends(get_user_gateway)
 ):
-    return UserInteractor(uow, security_service, user_gateway)
+    return UserInteractor(security_service, user_gateway)
 
 
 async def get_chat_interactor(
-        uow: UnitOfWork = Depends(get_uow),
         chat_gateway: ChatGateway = Depends(get_chat_gateway)
 ):
-    return ChatInteractor(uow, chat_gateway)
+    return ChatInteractor(chat_gateway)
 
 
 async def get_message_interactor(
-        uow: UnitOfWork = Depends(get_uow),
         message_gateway: MessageGateway = Depends(get_message_gateway)
 ):
-    return MessageInteractor(uow, message_gateway)
+    return MessageInteractor(message_gateway)
 
 
 async def get_token_interactor(
-        uow: UnitOfWork = Depends(get_uow),
         token_gateway: TokenGateway = Depends(get_token_gateway)
 ):
-    return TokenInteractor(uow, token_gateway)
+    return TokenInteractor(token_gateway)
 
 
 async def get_current_user(

@@ -9,7 +9,7 @@ from app.config import AppConfig
 from app.gateways.token_gateway import TokenGateway
 from app.gateways.user_gateway import UserGateway
 from app.infrastructure import schemas
-from app.infrastructure.database import Database
+from app.infrastructure.database import create_database
 from app.infrastructure.security import SecurityService
 from app.infrastructure.uow import UnitOfWork
 from app.main import Application
@@ -95,9 +95,9 @@ async def override_get_db(db_session):
 @pytest.fixture(scope="function")
 async def app(app_config, mock_redis, engine):
     """Create the FastAPI app with the test database."""
-    # Initialize Database with the test engine
-    database = Database(engine=engine)
-    application = Application(config=app_config, database=database)
+    database = create_database(engine)
+    application = Application(config=app_config)
+    application.database = database
     application.redis_client.client = mock_redis
 
     app_instance = application.create_app()
