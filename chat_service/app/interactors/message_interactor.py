@@ -1,12 +1,12 @@
 # app/interactors/message_interactor.py
 from typing import List, Optional
 
-from app.gateways.message_gateway import MessageGateway
+from app.gateways.interfaces import IMessageGateway
 from app.infrastructure import schemas
 
 
 class MessageInteractor:
-    def __init__(self, message_gateway: MessageGateway):
+    def __init__(self, message_gateway: IMessageGateway):
         self.message_gateway = message_gateway
 
     async def get_message(

@@ -1,8 +1,9 @@
-# app/gateways/message_gateway.py
+# app/infrastructure/message_gateway.py
 from datetime import datetime
 from typing import List, Optional
 
 from app.domain import models
+from app.gateways.interfaces import IMessageGateway
 from app.infrastructure import schemas
 from app.infrastructure.data_mappers import MessageMapper
 from app.infrastructure.uow import UnitOfWork, UoWModel
@@ -11,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 
-class MessageGateway:
+class MessageGateway(IMessageGateway):
     def __init__(self, session: AsyncSession, uow: UnitOfWork):
         self.session = session
         self.uow = uow

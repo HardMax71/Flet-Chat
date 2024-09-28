@@ -1,12 +1,12 @@
 # app/interactors/token_interactor.py
 from typing import Optional
 
-from app.gateways.token_gateway import TokenGateway
+from app.gateways.interfaces import ITokenGateway
 from app.infrastructure import schemas
 
 
 class TokenInteractor:
-    def __init__(self, token_gateway: TokenGateway):
+    def __init__(self, token_gateway: ITokenGateway):
         self.token_gateway = token_gateway
 
     async def upsert_token(

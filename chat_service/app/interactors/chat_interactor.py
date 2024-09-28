@@ -1,12 +1,12 @@
 # app/interactors/chat_interactor.py
 from typing import List, Optional, Dict
 
-from app.gateways.chat_gateway import ChatGateway
+from app.gateways.interfaces import IChatGateway
 from app.infrastructure import schemas
 
 
 class ChatInteractor:
-    def __init__(self, chat_gateway: ChatGateway):
+    def __init__(self, chat_gateway: IChatGateway):
         self.chat_gateway = chat_gateway
 
     async def get_chat(

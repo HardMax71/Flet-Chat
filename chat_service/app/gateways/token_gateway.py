@@ -1,7 +1,8 @@
-# app/gateways/token_gateway.py
+# app/infrastructure/token_gateway.py
 from typing import Optional
 
 from app.domain import models
+from app.gateways.interfaces import ITokenGateway
 from app.infrastructure import schemas
 from app.infrastructure.data_mappers import TokenMapper
 from app.infrastructure.uow import UnitOfWork, UoWModel
@@ -9,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-class TokenGateway:
+class TokenGateway(ITokenGateway):
     def __init__(self, session: AsyncSession, uow: UnitOfWork):
         self.session = session
         self.uow = uow

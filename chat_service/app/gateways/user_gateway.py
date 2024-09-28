@@ -1,7 +1,8 @@
-# app/gateways/user_gateway.py
+# app/infrastructure/user_gateway.py
 from typing import List, Optional
 
 from app.domain import models
+from app.gateways.interfaces import IUserGateway
 from app.infrastructure import schemas
 from app.infrastructure.data_mappers import UserMapper
 from app.infrastructure.security import SecurityService
@@ -10,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-class UserGateway:
+class UserGateway(IUserGateway):
     def __init__(self, session: AsyncSession, uow: UnitOfWork):
         self.session = session
         self.uow = uow

@@ -2,7 +2,7 @@
 from typing import List, Optional
 
 from app.domain import models
-from app.gateways.user_gateway import UserGateway
+from app.gateways.user_gateway import IUserGateway
 from app.infrastructure import schemas
 from app.infrastructure.security import SecurityService
 from app.infrastructure.uow import UoWModel
@@ -12,7 +12,7 @@ class UserInteractor:
     def __init__(
             self,
             security_service: SecurityService,
-            user_gateway: UserGateway
+            user_gateway: IUserGateway
     ):
         self.security_service = security_service
         self.user_gateway = user_gateway
