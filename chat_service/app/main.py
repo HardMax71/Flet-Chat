@@ -74,10 +74,10 @@ class Application:
         app.state.logger = self.logger
 
         # Create routers
-        app.include_router(auth.create_router(), prefix=f"{self.config.API_V1_STR}/auth", tags=["auth"])
-        app.include_router(users.create_router(), prefix=f"{self.config.API_V1_STR}/users", tags=["users"])
-        app.include_router(chats.create_router(), prefix=f"{self.config.API_V1_STR}/chats", tags=["chats"])
-        app.include_router(messages.create_router(), prefix=f"{self.config.API_V1_STR}/messages", tags=["messages"])
+        app.include_router(auth.router, prefix=f"{self.config.API_V1_STR}/auth", tags=["auth"])
+        app.include_router(users.router, prefix=f"{self.config.API_V1_STR}/users", tags=["users"])
+        app.include_router(chats.router, prefix=f"{self.config.API_V1_STR}/chats", tags=["chats"])
+        app.include_router(messages.router, prefix=f"{self.config.API_V1_STR}/messages", tags=["messages"])
 
         @app.exception_handler(Exception)
         async def global_exception_handler(request: Request, exc: Exception):
