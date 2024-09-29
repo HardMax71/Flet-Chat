@@ -1,13 +1,16 @@
 # app/interactors/chat_interactor.py
 from typing import List, Optional, Dict
 
-from app.gateways.interfaces import IChatGateway
+from app.gateways.interfaces import IChatGateway, IUserGateway
 from app.infrastructure import schemas
 
 
 class ChatInteractor:
-    def __init__(self, chat_gateway: IChatGateway):
+    def __init__(self,
+                 chat_gateway: IChatGateway,
+                 user_gateway: IUserGateway):
         self.chat_gateway = chat_gateway
+        self.user_gateway = user_gateway
 
     async def get_chat(
             self,
@@ -34,9 +37,15 @@ class ChatInteractor:
             self,
             chat: schemas.ChatCreate,
             user_id: int
-    ) -> schemas.Chat:
+    ) -> Optional[schemas.Chat]:
+        # Verify all members exist
+        for member_id in chat.member_ids:
+            user = await self.user_gateway.get_user(member_id)
+            if not user:
+                return None  # Invalid member
+
         new_chat = await self.chat_gateway.create_chat(chat, user_id)
-        return schemas.Chat.model_validate(new_chat)
+        return schemas.Chat.model_validate(new_chat) if new_chat else None
 
     async def update_chat(
             self,
@@ -113,5 +122,8 @@ class ChatInteractor:
             self,
             chat_id: int,
             user_id: int
-    ) -> int:
+    ) -> Optional[int]:
+        chat = await self.chat_gateway.get_chat(chat_id, user_id)
+        if not chat:
+            return None
         return await self.chat_gateway.get_unread_messages_count(chat_id, user_id)

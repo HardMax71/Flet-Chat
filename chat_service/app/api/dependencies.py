@@ -45,7 +45,8 @@ async def get_uow() -> UnitOfWork:
     return UnitOfWork()
 
 
-async def get_user_gateway(session: AsyncSession = Depends(get_session), uow: UnitOfWork = Depends(get_uow)):
+async def get_user_gateway(session: AsyncSession = Depends(get_session),
+                           uow: UnitOfWork = Depends(get_uow)):
     return UserGateway(session, uow)
 
 
@@ -69,9 +70,10 @@ async def get_user_interactor(
 
 
 async def get_chat_interactor(
-        chat_gateway: ChatGateway = Depends(get_chat_gateway)
+        chat_gateway: ChatGateway = Depends(get_chat_gateway),
+        user_gateway: UserGateway = Depends(get_user_gateway)
 ):
-    return ChatInteractor(chat_gateway)
+    return ChatInteractor(chat_gateway, user_gateway)
 
 
 async def get_message_interactor(
@@ -108,7 +110,13 @@ async def get_current_user(
             detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    return schemas.User.model_validate(user_model)
+    if not user_model._model.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Inactive user",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return schemas.User.model_validate(user_model._model)
 
 
 async def get_current_active_user(

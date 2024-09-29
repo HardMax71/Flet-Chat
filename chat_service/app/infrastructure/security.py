@@ -1,8 +1,11 @@
 # app/infrastructure/security.py
 import datetime
+import secrets
 from typing import Optional
+
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+
 
 class SecurityService:
     def __init__(self, config):
@@ -17,6 +20,7 @@ class SecurityService:
 
     def create_access_token(self, data: dict, expires_delta: Optional[datetime.timedelta] = None):
         to_encode = data.copy()
+        to_encode.update({"nonce": secrets.token_hex(8)})  # Add a random nonce
         if expires_delta:
             expire = datetime.datetime.now(datetime.timezone.utc) + expires_delta
         else:
@@ -27,7 +31,8 @@ class SecurityService:
 
     def create_refresh_token(self, data: dict):
         to_encode = data.copy()
-        expire = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=self.config.REFRESH_TOKEN_EXPIRE_DAYS)
+        expire = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(
+            days=self.config.REFRESH_TOKEN_EXPIRE_DAYS)
         to_encode.update({"exp": expire})
         encoded_jwt = jwt.encode(to_encode, self.config.REFRESH_SECRET_KEY, algorithm=self.config.ALGORITHM)
         return encoded_jwt, expire

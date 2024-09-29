@@ -119,28 +119,31 @@ class IMessageGateway(ABC):
 
 class ITokenGateway(ABC):
     @abstractmethod
-    async def upsert_token(self,
-                           token: schemas.TokenCreate) -> UoWModel:
+    async def create_token(self, token: schemas.TokenCreate) -> UoWModel:
         pass
 
     @abstractmethod
-    async def get_by_user_id(self,
-                             user_id: int) -> Optional[UoWModel]:
+    async def get_by_user_id(self, user_id: int) -> Optional[UoWModel]:
         pass
 
     @abstractmethod
-    async def get_by_access_token(self,
-                                  access_token: str) -> Optional[UoWModel]:
+    async def get_by_access_token(self, access_token: str) -> Optional[UoWModel]:
         pass
 
     @abstractmethod
-    async def get_by_refresh_token(self,
-                                   refresh_token: str) -> Optional[UoWModel]:
+    async def get_by_refresh_token(self, refresh_token: str) -> Optional[UoWModel]:
         pass
 
     @abstractmethod
-    async def delete_token_by_access_token(self,
-                                           access_token: str) -> bool:
+    async def invalidate_refresh_token(self, refresh_token: str) -> bool:
+        pass
+
+    @abstractmethod
+    async def delete_token_by_access_token(self, access_token: str) -> bool:
+        pass
+
+    @abstractmethod
+    async def delete_token_by_refresh_token(self, refresh_token: str) -> bool:
         pass
 
 
@@ -150,43 +153,38 @@ class IUserGateway(ABC):
         pass
 
     @abstractmethod
+    async def get_by_email(self, email: str) -> Optional[UoWModel]:
+        pass
+
+    @abstractmethod
     async def get_by_username(self, username: str) -> Optional[UoWModel]:
         pass
 
     @abstractmethod
-    async def get_all(self,
-                      skip: int = 0,
-                      limit: int = 100,
-                      username: Optional[str] = None) -> List[UoWModel]:
+    async def get_all(self, skip: int = 0, limit: int = 100, username: Optional[str] = None) -> List[UoWModel]:
         pass
 
     @abstractmethod
-    async def create_user(self,
-                          user: schemas.UserCreate,
+    async def update_user(self, user: UoWModel, user_update: schemas.UserUpdate,
                           security_service: SecurityService) -> UoWModel:
         pass
 
     @abstractmethod
-    async def search_users(self,
-                           query: str,
-                           current_user_id: int) -> List[UoWModel]:
+    async def create_user(self, user: schemas.UserCreate, security_service: SecurityService) -> Optional[UoWModel]:
         pass
 
     @abstractmethod
-    async def verify_password(self,
-                              user: UoWModel,
-                              password: str,
-                              security_service: SecurityService) -> bool:
+    async def search_users(self, query: str, current_user_id: int) -> List[UoWModel]:
         pass
 
     @abstractmethod
-    async def update_password(self,
-                              user: UoWModel,
-                              new_password: str,
-                              security_service: SecurityService) -> None:
+    async def verify_password(self, user: UoWModel, password: str, security_service: SecurityService) -> bool:
         pass
 
     @abstractmethod
-    async def delete_user(self,
-                          user_id: int) -> Optional[UoWModel]:
+    async def update_password(self, user: UoWModel, new_password: str, security_service: SecurityService) -> None:
+        pass
+
+    @abstractmethod
+    async def delete_user(self, user_id: int) -> Optional[UoWModel]:
         pass

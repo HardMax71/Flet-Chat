@@ -31,6 +31,12 @@ def create_router():
                 detail="Incorrect username or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Inactive user",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
 
         access_token_expires = datetime.timedelta(minutes=config.ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token, access_expire = security_service.create_access_token(
@@ -47,15 +53,9 @@ def create_router():
             expires_at=access_expire,
             user_id=user.id
         )
-        token = await token_interactor.upsert_token(token_create)
+        token = await token_interactor.create_token(token_create)
 
-        return schemas.TokenResponse(
-            access_token=token.access_token,
-            refresh_token=token.refresh_token,
-            token_type=token.token_type,
-            expires_at=token.expires_at,
-            user_id=token.user_id
-        )
+        return token
 
     @router.post("/register", response_model=schemas.User)
     async def register_user(
@@ -65,7 +65,12 @@ def create_router():
         existing_user = await user_interactor.get_user_by_username(user.username)
         if existing_user:
             raise HTTPException(status_code=400, detail="Username already registered")
+        existing_email = await user_interactor.get_user_by_email(user.email)
+        if existing_email:
+            raise HTTPException(status_code=400, detail="Email already registered")
         new_user = await user_interactor.create_user(user)
+        if not new_user:
+            raise HTTPException(status_code=400, detail="User creation failed")
         return new_user
 
     @router.post("/refresh", response_model=schemas.TokenResponse)
@@ -93,13 +98,17 @@ def create_router():
             )
 
         user = await user_interactor.get_user_by_username(username)
-        if not user:
+        if not user or not user.is_active:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User not found",
+                detail="User not found or inactive",
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
+        # Invalidate the old refresh token
+        await token_interactor.invalidate_refresh_token(refresh_token_request.refresh_token)
+
+        # Create new tokens
         new_access_token, new_access_token_expires = security_service.create_access_token(
             data={"sub": user.username},
             expires_delta=timedelta(minutes=config.ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -115,15 +124,9 @@ def create_router():
             expires_at=new_access_token_expires,
             user_id=user.id
         )
-        updated_token = await token_interactor.upsert_token(token_create)
+        new_token = await token_interactor.create_token(token_create)
 
-        return schemas.TokenResponse(
-            access_token=updated_token.access_token,
-            refresh_token=updated_token.refresh_token,
-            token_type=updated_token.token_type,
-            expires_at=updated_token.expires_at,
-            user_id=updated_token.user_id
-        )
+        return new_token
 
     @router.post("/logout")
     async def logout(
@@ -132,7 +135,7 @@ def create_router():
     ):
         deleted = await token_interactor.delete_token_by_access_token(token)
         if not deleted:
-            raise HTTPException(status_code=400, detail="Invalid token")
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
         return {"message": "Successfully logged out"}
 
     return router

@@ -12,6 +12,7 @@ from app.infrastructure import schemas
 from app.infrastructure.database import create_database
 from app.infrastructure.security import SecurityService
 from app.infrastructure.uow import UnitOfWork
+from app.interactors.user_interactor import UserInteractor
 from app.main import Application
 from fakeredis import aioredis
 from httpx import AsyncClient, ASGITransport
@@ -69,11 +70,20 @@ async def engine(app_config):
 @pytest.fixture(scope="function")
 async def db_session(engine):
     """Provide a SQLAlchemy session for testing."""
-    TestingSessionLocal = sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
+    async_session_factory = sessionmaker(
+        bind=engine, class_=AsyncSession, expire_on_commit=False
     )
-    async with TestingSessionLocal() as session:
-        yield session
+    session = async_session_factory()
+    yield session
+    await session.close()
+
+
+@pytest.fixture(autouse=True)
+def increase_token_expiration(app_config):
+    original_expire_minutes = app_config.ACCESS_TOKEN_EXPIRE_MINUTES
+    app_config.ACCESS_TOKEN_EXPIRE_MINUTES = 5  # Set to 5 minutes for testing
+    yield
+    app_config.ACCESS_TOKEN_EXPIRE_MINUTES = original_expire_minutes
 
 
 @pytest.fixture(scope="function")
@@ -83,12 +93,10 @@ async def uow():
 
 
 @pytest.fixture(scope="function")
-async def override_get_db(db_session):
+def override_get_db(db_session):
     """Override the get_session dependency to use the test session."""
-
     async def _override_get_db():
         yield db_session
-
     return _override_get_db
 
 
@@ -108,7 +116,7 @@ async def app(app_config, mock_redis, engine):
 @pytest.fixture(scope="function")
 async def app_with_db(app, override_get_db):
     """Override dependencies to use the test database session."""
-    app.dependency_overrides[dependencies.get_session] = override_get_db  # Correctly override get_session
+    app.dependency_overrides[dependencies.get_session] = override_get_db
     yield app
     app.dependency_overrides.clear()
 
@@ -134,7 +142,6 @@ async def test_user(db_session, app_config, uow):
     user = await user_gateway.create_user(user_create, security_service)
     await uow.commit()
     return user
-
 
 @pytest.fixture(scope="function")
 async def test_user2(db_session, app_config, uow):

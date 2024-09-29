@@ -16,22 +16,21 @@ class TokenGateway(ITokenGateway):
         self.uow = uow
         uow.mappers[models.Token] = TokenMapper(session)
 
-    async def upsert_token(self, token: schemas.TokenCreate) -> UoWModel:
-        stmt = select(models.Token).filter(models.Token.user_id == token.user_id)
-        result = await self.session.execute(stmt)
-        existing_token = result.scalar_one_or_none()
-
+    async def create_token(self, token: schemas.TokenCreate) -> UoWModel:
+        # Check if a token already exists for this user
+        existing_token = await self.get_by_user_id(token.user_id)
         if existing_token:
-            for key, value in token.model_dump().items():
-                setattr(existing_token, key, value)
+            # Update the existing token directly
+            existing_token._model.access_token = token.access_token
+            existing_token._model.refresh_token = token.refresh_token
+            existing_token._model.expires_at = token.expires_at
             self.uow.register_dirty(existing_token)
-            uow_token = UoWModel(existing_token, self.uow)
         else:
-            new_token = models.Token(**token.model_dump())
-            uow_token = self.uow.register_new(new_token)
-
+            # Create a new token
+            db_token = models.Token(**token.model_dump())
+            existing_token = self.uow.register_new(db_token)
         await self.uow.commit()
-        return uow_token
+        return existing_token
 
     async def get_by_user_id(self, user_id: int) -> Optional[UoWModel]:
         stmt = select(models.Token).filter(models.Token.user_id == user_id)
@@ -51,10 +50,28 @@ class TokenGateway(ITokenGateway):
         token = result.scalar_one_or_none()
         return UoWModel(token, self.uow) if token else None
 
-    async def delete_token_by_access_token(self, access_token: str) -> bool:
-        token = await self.get_by_access_token(access_token)
+    async def invalidate_refresh_token(self, refresh_token: str) -> bool:
+        token: Optional[UoWModel] = await self.get_by_refresh_token(refresh_token)
         if token:
-            self.uow.register_deleted(token._model)
+            # Invalidate the refresh token
+            token.refresh_token = None
+            self.uow.register_dirty(token)
+            await self.uow.commit()
+            return True
+        return False
+
+    async def delete_token_by_access_token(self, access_token: str) -> bool:
+        token: Optional[UoWModel] = await self.get_by_access_token(access_token)
+        if token:
+            self.uow.register_deleted(token)
+            await self.uow.commit()
+            return True
+        return False
+
+    async def delete_token_by_refresh_token(self, refresh_token: str) -> bool:
+        token: Optional[UoWModel] = await self.get_by_refresh_token(refresh_token)
+        if token:
+            self.uow.register_deleted(token)
             await self.uow.commit()
             return True
         return False

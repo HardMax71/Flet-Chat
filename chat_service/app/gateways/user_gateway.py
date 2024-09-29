@@ -7,7 +7,7 @@ from app.infrastructure import schemas
 from app.infrastructure.data_mappers import UserMapper
 from app.infrastructure.security import SecurityService
 from app.infrastructure.uow import UnitOfWork, UoWModel
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -23,8 +23,14 @@ class UserGateway(IUserGateway):
         user = result.scalar_one_or_none()
         return UoWModel(user, self.uow) if user else None
 
+    async def get_by_email(self, email: str) -> Optional[UoWModel]:
+        stmt = select(models.User).filter(func.lower(models.User.email) == func.lower(email))
+        result = await self.session.execute(stmt)
+        user = result.scalar_one_or_none()
+        return UoWModel(user, self.uow) if user else None
+
     async def get_by_username(self, username: str) -> Optional[UoWModel]:
-        stmt = select(models.User).filter(models.User.username == username)
+        stmt = select(models.User).filter(func.lower(models.User.username) == func.lower(username))
         result = await self.session.execute(stmt)
         user = result.scalar_one_or_none()
         return UoWModel(user, self.uow) if user else None
@@ -38,7 +44,28 @@ class UserGateway(IUserGateway):
         users = result.scalars().all()
         return [UoWModel(user, self.uow) for user in users]
 
-    async def create_user(self, user: schemas.UserCreate, security_service: SecurityService) -> UoWModel:
+    async def update_user(self,
+                          user: UoWModel,
+                          user_update: schemas.UserUpdate,
+                          security_service: SecurityService) -> UoWModel:
+        for key, value in user_update.model_dump(exclude_unset=True).items():
+            if key == 'password':
+                hashed_password = security_service.get_password_hash(value)
+                setattr(user, 'hashed_password', hashed_password)
+            else:
+                setattr(user, key, value)
+
+        await self.uow.commit()
+        return user
+
+    async def create_user(self, user: schemas.UserCreate, security_service: SecurityService) -> Optional[UoWModel]:
+        existing_user = await self.get_by_email(user.email)
+        if existing_user:
+            return None
+        existing_username = await self.get_by_username(user.username)
+        if existing_username:
+            return None
+
         hashed_password = security_service.get_password_hash(user.password)
         db_user = models.User(**user.model_dump(exclude={'password'}), hashed_password=hashed_password)
         uow_user = self.uow.register_new(db_user)

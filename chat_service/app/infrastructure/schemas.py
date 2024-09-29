@@ -25,6 +25,7 @@ class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     password: Optional[str] = Field(None, min_length=8)
     username: Optional[str] = None
+    is_active: Optional[bool] = None  # sort of soft deleting
 
 
 class User(UserBase):

@@ -31,6 +31,10 @@ class UserInteractor:
         user: Optional[UoWModel] = await self.user_gateway.get_by_username(username)
         return schemas.User.model_validate(user._model) if user else None
 
+    async def get_user_by_email(self, email: str) -> Optional[schemas.User]:
+        user: Optional[UoWModel] = await self.user_gateway.get_by_email(email)
+        return schemas.User.model_validate(user._model) if user else None
+
     async def get_users(
             self,
             skip: int = 0,
@@ -43,12 +47,10 @@ class UserInteractor:
             for user in users
         ]
 
-    async def create_user(
-            self,
-            user: schemas.UserCreate
-    ) -> schemas.User:
-        new_user: models.User = await self.user_gateway.create_user(user, self.security_service)
-        return schemas.User.model_validate(new_user)
+    async def create_user(self,
+                          user: schemas.UserCreate) -> Optional[schemas.User]:
+        new_user: Optional[models.User] = await self.user_gateway.create_user(user, self.security_service)
+        return schemas.User.model_validate(new_user) if new_user else None
 
     async def update_user(
             self,
@@ -58,12 +60,10 @@ class UserInteractor:
         user: Optional[UoWModel] = await self.user_gateway.get_user(user_id)
         if not user:
             return None
-        for key, value in user_update.model_dump(exclude_unset=True).items():
-            if key == 'password':
-                await self.user_gateway.update_password(user, value, self.security_service)
-            else:
-                setattr(user, key, value)
-        return schemas.User.model_validate(user._model)
+        updated_user = await self.user_gateway.update_user(user,
+                                                           user_update,
+                                                           self.security_service)
+        return schemas.User.model_validate(updated_user._model)
 
     async def delete_user(
             self,

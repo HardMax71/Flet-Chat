@@ -20,6 +20,8 @@ def create_router():
             current_user: schemas.User = Depends(get_current_active_user)
     ):
         new_chat = await chat_interactor.create_chat(chat, current_user.id)
+        if not new_chat:
+            raise HTTPException(status_code=404, detail="One or more invalid member IDs")
         return new_chat
 
     @router.get("/", response_model=List[schemas.Chat])
@@ -132,6 +134,8 @@ def create_router():
             current_user: schemas.User = Depends(get_current_active_user)
     ):
         unread_count = await chat_interactor.get_unread_messages_count(chat_id, current_user.id)
+        if unread_count is None:
+            raise HTTPException(status_code=404, detail="Chat not found")
         return unread_count
 
     return router
