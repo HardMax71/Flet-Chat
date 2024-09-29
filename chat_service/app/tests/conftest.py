@@ -6,13 +6,13 @@ import string
 import pytest
 from app.api import dependencies
 from app.config import AppConfig
+from app.gateways.chat_gateway import ChatGateway
 from app.gateways.token_gateway import TokenGateway
 from app.gateways.user_gateway import UserGateway
 from app.infrastructure import schemas
 from app.infrastructure.database import create_database
 from app.infrastructure.security import SecurityService
 from app.infrastructure.uow import UnitOfWork
-from app.interactors.user_interactor import UserInteractor
 from app.main import Application
 from fakeredis import aioredis
 from httpx import AsyncClient, ASGITransport
@@ -95,8 +95,10 @@ async def uow():
 @pytest.fixture(scope="function")
 def override_get_db(db_session):
     """Override the get_session dependency to use the test session."""
+
     async def _override_get_db():
         yield db_session
+
     return _override_get_db
 
 
@@ -142,6 +144,20 @@ async def test_user(db_session, app_config, uow):
     user = await user_gateway.create_user(user_create, security_service)
     await uow.commit()
     return user
+
+
+@pytest.fixture(scope="function")
+async def test_chat(db_session, test_user, uow):
+    """Create a test chat in the database."""
+    chat_create = schemas.ChatCreate(
+        name=f"TestChat_{random.randint(1, 1000)}",
+        member_ids=[test_user.id]
+    )
+    chat_gateway = ChatGateway(db_session, uow)
+    chat = await chat_gateway.create_chat(chat_create, test_user.id)
+    await uow.commit()
+    return chat
+
 
 @pytest.fixture(scope="function")
 async def test_user2(db_session, app_config, uow):

@@ -87,7 +87,7 @@ async def test_login_inactive_user(client: AsyncClient, test_user):
         json={"is_active": False},
         headers=headers
     )
-    print(update_response.json())
+
     assert update_response.status_code == 200
 
     # Attempt to login again with the same credentials
