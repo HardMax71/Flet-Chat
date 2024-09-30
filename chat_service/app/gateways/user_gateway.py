@@ -1,8 +1,8 @@
 # app/infrastructure/user_gateway.py
 from typing import List, Optional
 
-from app.domain import models
 from app.gateways.interfaces import IUserGateway
+from app.infrastructure import models
 from app.infrastructure import schemas
 from app.infrastructure.data_mappers import UserMapper
 from app.infrastructure.security import SecurityService

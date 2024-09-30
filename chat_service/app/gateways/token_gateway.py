@@ -1,8 +1,8 @@
 # app/infrastructure/token_gateway.py
 from typing import Optional
 
-from app.domain import models
 from app.gateways.interfaces import ITokenGateway
+from app.infrastructure import models
 from app.infrastructure import schemas
 from app.infrastructure.data_mappers import TokenMapper
 from app.infrastructure.uow import UnitOfWork, UoWModel

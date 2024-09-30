@@ -2,7 +2,7 @@
 
 from typing import Protocol, TypeVar
 
-from app.domain import models
+from app.infrastructure import models
 from sqlalchemy.ext.asyncio import AsyncSession
 
 ModelT = TypeVar('ModelT')

@@ -1,5 +1,5 @@
 # app/tests/unit/test_models.py
-from app.domain.models import User, Chat, Message, Token, MessageStatus
+from app.infrastructure.models import User, Chat, Message, Token, MessageStatus
 
 
 def test_user_model():

@@ -2,8 +2,8 @@
 from datetime import datetime
 from typing import List, Optional
 
-from app.domain import models
 from app.gateways.interfaces import IMessageGateway
+from app.infrastructure import models
 from app.infrastructure import schemas
 from app.infrastructure.data_mappers import MessageMapper
 from app.infrastructure.uow import UnitOfWork, UoWModel
@@ -99,7 +99,7 @@ class MessageGateway(IMessageGateway):
         return None
 
     async def update_message_status(self, message_id: int, user_id: int, status_update: schemas.MessageStatusUpdate) -> \
-    Optional[UoWModel]:
+            Optional[UoWModel]:
         stmt = select(models.Message).options(
             selectinload(models.Message.statuses)
         ).filter(models.Message.id == message_id)

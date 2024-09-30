@@ -1,4 +1,7 @@
-# app/domain/models.py
+# app/infrastructure/models.py
+from app.domain.entities import (User as UserEntity, Chat as ChatEntity,
+                                 Message as MessageEntity, Token as TokenEntity,
+                                 MessageStatus as MessageStatusEntity)
 from app.infrastructure.database import Base
 from sqlalchemy import Column, Boolean, Integer, String, DateTime, ForeignKey, Table
 from sqlalchemy.orm import relationship
@@ -12,7 +15,7 @@ chat_members = Table(
 )
 
 
-class User(Base):
+class User(Base, UserEntity):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -28,7 +31,7 @@ class User(Base):
     message_statuses = relationship("MessageStatus", back_populates="user", lazy="selectin")
 
 
-class Chat(Base):
+class Chat(Base, ChatEntity):
     __tablename__ = "chats"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -39,7 +42,7 @@ class Chat(Base):
     messages = relationship("Message", back_populates="chat", lazy="selectin")
 
 
-class Message(Base):
+class Message(Base, MessageEntity):
     __tablename__ = "messages"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -55,7 +58,7 @@ class Message(Base):
     statuses = relationship("MessageStatus", back_populates="message", lazy="selectin")
 
 
-class Token(Base):
+class Token(Base, TokenEntity):
     __tablename__ = "tokens"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -68,7 +71,7 @@ class Token(Base):
     user = relationship("User", back_populates="tokens", lazy="selectin")
 
 
-class MessageStatus(Base):
+class MessageStatus(Base, MessageStatusEntity):
     __tablename__ = "message_statuses"
 
     id = Column(Integer, primary_key=True, index=True)

@@ -1,8 +1,8 @@
 # app/infrastructure/chat_gateway.py
 from typing import List, Optional, Dict
 
-from app.domain import models
 from app.gateways.interfaces import IChatGateway
+from app.infrastructure import models
 from app.infrastructure import schemas
 from app.infrastructure.data_mappers import ChatMapper
 from app.infrastructure.uow import UnitOfWork, UoWModel

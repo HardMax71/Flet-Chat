@@ -61,7 +61,7 @@ async def engine(app_config):
         echo=False
     )
     async with engine.begin() as conn:
-        from app.domain import models  # Ensure all models are imported
+        from app.infrastructure import models  # noqa: F401
         await conn.run_sync(models.Base.metadata.create_all)
     yield engine
     await engine.dispose()

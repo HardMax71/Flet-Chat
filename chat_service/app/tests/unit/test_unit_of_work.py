@@ -3,7 +3,7 @@
 from unittest.mock import AsyncMock
 
 import pytest
-from app.domain import models
+from app.infrastructure import models
 from app.infrastructure.data_mappers import UserMapper
 from app.infrastructure.uow import UoWModel, UnitOfWork
 
