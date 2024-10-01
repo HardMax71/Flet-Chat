@@ -3,6 +3,7 @@
 # Flet-Chat
 
 [![codecov](https://codecov.io/gh/HardMax71/Flet-Chat/branch/main/graph/badge.svg)](https://codecov.io/gh/HardMax71/Flet-Chat)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/d692dbdd8ec541799947f81fe3a41b65)](https://app.codacy.com/gh/HardMax71/Flet-Chat/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python Version](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/release/python-3110/)
 
