@@ -18,7 +18,7 @@ chat_members = Table(
 class User(Base, UserEntity):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     username = Column(String, unique=True, index=True)
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
@@ -34,7 +34,7 @@ class User(Base, UserEntity):
 class Chat(Base, ChatEntity):
     __tablename__ = "chats"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     name = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -45,7 +45,7 @@ class Chat(Base, ChatEntity):
 class Message(Base, MessageEntity):
     __tablename__ = "messages"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     content = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -61,7 +61,7 @@ class Message(Base, MessageEntity):
 class Token(Base, TokenEntity):
     __tablename__ = "tokens"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     access_token = Column(String, unique=True, index=True)
     refresh_token = Column(String, unique=True, index=True)
     token_type = Column(String)
@@ -74,7 +74,7 @@ class Token(Base, TokenEntity):
 class MessageStatus(Base, MessageStatusEntity):
     __tablename__ = "message_statuses"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     message_id = Column(Integer, ForeignKey("messages.id"))
     user_id = Column(Integer, ForeignKey("users.id"))
     is_read = Column(Boolean, default=False)

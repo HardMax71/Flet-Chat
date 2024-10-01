@@ -41,7 +41,7 @@ async def login_for_access_token(
     access_token, access_expire = security_service.create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
-    refresh_token, refresh_expire = security_service.create_refresh_token(
+    refresh_token, _ = security_service.create_refresh_token(
         data={"sub": user.username}
     )
 
@@ -114,7 +114,7 @@ async def refresh_token(
         data={"sub": user.username},
         expires_delta=timedelta(minutes=config.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
-    new_refresh_token, new_refresh_token_expires = security_service.create_refresh_token(
+    new_refresh_token, _ = security_service.create_refresh_token(
         data={"sub": user.username}
     )
 

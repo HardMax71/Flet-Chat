@@ -1,5 +1,7 @@
 import logging
+
 import flet as ft
+
 
 class UserProfileScreen(ft.Column):
     def __init__(self, chat_app):
@@ -134,6 +136,7 @@ class UserProfileScreen(ft.Column):
         Initiates the account deletion process.
         """
         self.logger.info("Initiating account deletion process")
+
         def confirm_delete(e):
             self.logger.info("Account deletion confirmed")
             response = self.chat_app.api_client.delete_user()

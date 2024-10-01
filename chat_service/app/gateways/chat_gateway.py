@@ -94,13 +94,13 @@ class ChatGateway(IChatGateway):
     async def get_unread_messages_count(self, chat_id: int, user_id: int) -> int:
         stmt = select(func.count(models.MessageStatus.id)).join(models.Message).filter(
             models.Message.chat_id == chat_id, models.MessageStatus.user_id == user_id,
-            models.MessageStatus.is_read == False)
+            models.MessageStatus.is_read.is_(False))
         result = await self.session.execute(stmt)
         return result.scalar_one()
 
     async def get_unread_counts_for_chat_members(self, chat_id: int, current_user_id: int) -> Dict[int, int]:
         stmt = select(models.MessageStatus.user_id, func.count(models.MessageStatus.id).label('unread_count')).join(
-            models.Message).filter(models.Message.chat_id == chat_id, models.MessageStatus.is_read == False,
+            models.Message).filter(models.Message.chat_id == chat_id, models.MessageStatus.is_read.is_(False),
                                    models.MessageStatus.user_id != current_user_id).group_by(
             models.MessageStatus.user_id)
         result = await self.session.execute(stmt)

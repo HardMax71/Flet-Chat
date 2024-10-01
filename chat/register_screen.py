@@ -1,5 +1,7 @@
 import logging
+
 import flet as ft
+
 
 class RegisterScreen(ft.Column):
     def __init__(self, chat_app):
@@ -64,6 +66,7 @@ class RegisterScreen(ft.Column):
         Displays a success dialog after successful registration.
         """
         self.logger.info("Showing registration success dialog")
+
         def close_dlg(e):
             dlg.open = False
             self.chat_app.page.update()
