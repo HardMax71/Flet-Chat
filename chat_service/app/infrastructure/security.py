@@ -1,9 +1,9 @@
-# app/infrastructure/security.py
 import datetime
 import secrets
 from typing import Optional
 
-from jose import JWTError, jwt
+import jwt  # Import PyJWT
+from jwt import ExpiredSignatureError, InvalidTokenError
 from passlib.context import CryptContext
 
 
@@ -44,7 +44,7 @@ class SecurityService:
             if username is None:
                 return None
             return username
-        except JWTError:
+        except (ExpiredSignatureError, InvalidTokenError):
             return None
 
     def decode_refresh_token(self, token: str):
@@ -54,5 +54,5 @@ class SecurityService:
             if username is None:
                 return None
             return username
-        except JWTError:
+        except (ExpiredSignatureError, InvalidTokenError):
             return None

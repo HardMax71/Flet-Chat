@@ -8,7 +8,7 @@ pydantic-settings==2.5.2
 pydantic_core==2.23.4
 alembic==1.13.2
 email_validator==2.2.0
-python-jose[cryptography]>=3.3.0
+pyjwt==2.9.0
 python-multipart==0.0.9
 passlib==1.7.4
 redis==5.0.8
