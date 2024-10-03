@@ -205,11 +205,6 @@ async def test_logout(client: AsyncClient, auth_header):
     assert me_response.status_code == 401
 
 
-async def test_logout_invalid_token(client: AsyncClient):
-    response = await client.post("/api/v1/auth/logout", headers={"Authorization": "Bearer invalid_token"})
-    assert response.status_code == 401
-
-
 async def test_password_hashing(client: AsyncClient):
     register_response = await client.post(
         "/api/v1/auth/register",
@@ -268,3 +263,96 @@ async def test_login_case_insensitive_username(client: AsyncClient, test_user):
     )
     assert response.status_code == 200
     assert "access_token" in response.json()
+
+
+async def test_register_user_creation_failed(client: AsyncClient):
+    response = await client.post(
+        "/api/v1/auth/register",
+        json={"username": "", "email": "invalid_email", "password": ""}
+    )
+    assert response.status_code == 422  # Unprocessable Entity
+    errors = response.json()["detail"]
+
+    # Check for email validation error
+    assert any(error["loc"] == ["body", "email"] and "not a valid email address" in error["msg"] for error in errors)
+
+    # Check for password length error
+    assert any(
+        error["loc"] == ["body", "password"] and "String should have at least 8 characters" in error["msg"] for error in
+        errors)
+
+    # Check that there's no specific error for username
+    assert not any("username" in error["loc"] for error in errors)
+
+
+async def test_refresh_token_invalid_token(client: AsyncClient):
+    response = await client.post(
+        "/api/v1/auth/refresh",
+        json={"refresh_token": "invalid_token"}
+    )
+    assert response.status_code == 401
+    assert "Invalid refresh token" in response.json()["detail"]
+
+
+async def test_refresh_token_invalid_user(client: AsyncClient, test_user):
+    # First, login to get tokens
+    login_response = await client.post(
+        "/api/v1/auth/login",
+        data={"username": test_user.username, "password": "testpassword"}
+    )
+    assert login_response.status_code == 200
+    access_token = login_response.json()["access_token"]
+    refresh_token = login_response.json()["refresh_token"]
+
+    # Deactivate the user
+    deactivate_response = await client.put(
+        "/api/v1/users/me",
+        json={"is_active": False},
+        headers={"Authorization": f"Bearer {access_token}"}
+    )
+    assert deactivate_response.status_code == 200
+
+    # Attempt to refresh the token with the now-inactive user
+    response = await client.post(
+        "/api/v1/auth/refresh",
+        json={"refresh_token": refresh_token}
+    )
+
+    assert response.status_code == 401
+    assert "User not found or inactive" in response.json()["detail"]
+
+
+async def test_refresh_token_inactive_user(client: AsyncClient, test_user):
+    # First, login to get tokens and deactivate the user
+    login_response = await client.post(
+        "/api/v1/auth/login",
+        data={"username": test_user.username, "password": "testpassword"}
+    )
+    assert login_response.status_code == 200
+    access_token = login_response.json()["access_token"]
+    refresh_token = login_response.json()["refresh_token"]
+
+    # Deactivate the user
+    update_response = await client.put(
+        "/api/v1/users/me",
+        json={"is_active": False},
+        headers={"Authorization": f"Bearer {access_token}"}
+    )
+    assert update_response.status_code == 200
+
+    # Attempt to refresh the token with the inactive user
+    refresh_response = await client.post(
+        "/api/v1/auth/refresh",
+        json={"refresh_token": refresh_token}
+    )
+    assert refresh_response.status_code == 401
+    assert "User not found or inactive" in refresh_response.json()["detail"]
+
+
+async def test_logout_invalid_token(client: AsyncClient):
+    response = await client.post(
+        "/api/v1/auth/logout",
+        headers={"Authorization": "Bearer invalid_token"}
+    )
+    assert response.status_code == 401
+    assert "Invalid token" in response.json()["detail"]
