@@ -27,9 +27,74 @@
 - **Data Validation**: [Pydantic](https://pydantic-docs.helpmanual.io/) - Data validation and settings management using Python type annotations
 - **Containerization**: [Docker](https://www.docker.com/) and Docker Compose
 
-## 📚 API Documentation
+## 🚀 Getting Started
 
-Once the application is running, you can access the API documentation at:
+Follow these steps to get Flet-Chat up and running on your local machine:
+
+<details>
+<summary>Click to expand step-by-step instructions</summary>
+
+### Prerequisites
+
+- Docker and Docker Compose
+- Python 3.11 or higher
+
+### Starting the Application
+
+1. **Start the Backend Services**
+
+   Navigate to the project root directory and run:
+
+    ```bash
+    docker-compose up -d
+    ```
+   
+    This command will start the PostgreSQL database, Redis, and the FastAPI backend service.
+
+2. **Start the Frontend Flet App**
+
+    a. Create a virtual environment:
+
+    ```bash
+    python -m venv venv
+    ```
+   
+    b. Activate the virtual environment:
+   - On Windows:
+     ```bash
+     venv\Scripts\activate
+     ```
+   - On macOS and Linux:
+     ```bash
+     source venv/bin/activate
+     ```
+
+    c. Install the required packages:
+    
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+    d. Run the Flet application:
+
+    ```bash
+    python main.py --web  # also possible: flet run
+    ```
+
+This will launch the Flet application, and you should see a window open with the chat interface.
+
+3. **Accessing the Application**
+
+- The Flet frontend application will be running as a desktop app.
+- The FastAPI backend will be accessible at `http://localhost:8000`.
+
+</details>
+
+## 📚 Documentation
+
+For comprehensive documentation on Flet-Chat, please refer to our [GitHub Wiki](https://github.com/HardMax71/Flet-Chat/wiki/Flet%E2%80%90Chat-Wiki). The wiki provides detailed information on installation, usage, architecture, and more.
+
+For API-specific documentation, once the application is running, you can access:
 
 - Swagger UI: `http://localhost:8000/docs`
 - ReDoc: `http://localhost:8000/redoc`
