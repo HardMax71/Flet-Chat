@@ -63,7 +63,7 @@ class UserProfileScreen(ft.Column):
             )
         else:
             self.logger.error(f"Failed to load user profile: {response.error}")
-            self.chat_app.show_error_dialog("Error Loading Profile", f"Failed to load user profile: {response.error}")
+            self.chat_app.show_error_dialog("Error Loading Profile", response.error)
             return ft.Text("Failed to load profile")
 
     def go_back(self, e):
@@ -101,7 +101,7 @@ class UserProfileScreen(ft.Column):
             self.page.update()
         else:
             self.logger.error(f"Failed to update profile: {response.error}")
-            self.chat_app.show_error_dialog("Error Updating Profile", f"Failed to update profile: {response.error}")
+            self.chat_app.show_error_dialog("Error Updating Profile", response.error)
 
     def relogin(self, e):
         """
@@ -129,7 +129,7 @@ class UserProfileScreen(ft.Column):
             self.chat_app.show_login()
         else:
             self.logger.error(f"Failed to logout: {response.error}")
-            self.chat_app.show_error_dialog("Error Logging Out", f"Failed to logout: {response.error}")
+            self.chat_app.show_error_dialog("Error Logging Out", response.error)
 
     def delete_account(self, e):
         """
@@ -146,7 +146,7 @@ class UserProfileScreen(ft.Column):
                 self.chat_app.show_login()
             else:
                 self.logger.error(f"Failed to delete account: {response.error}")
-                self.chat_app.show_error_dialog("Error Deleting Account", f"Failed to delete account: {response.error}")
+                self.chat_app.show_error_dialog("Error Deleting Account", response.error)
             dialog.open = False
             self.page.update()
 

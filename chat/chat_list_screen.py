@@ -98,7 +98,7 @@ class ChatListScreen(ft.Column):
                 if current_user_response.success:
                     self.current_user_id = current_user_response.data['id']
                 else:
-                    self.chat_app.show_error_dialog("Error", "Failed to get current user.")
+                    self.chat_app.show_error_dialog("Error", {"detail": "Failed to get current user."})
                     self.loading_indicator.visible = False
                     self.update()
                     return
@@ -169,7 +169,7 @@ class ChatListScreen(ft.Column):
 
             self.logger.info("Chats loaded successfully.")
         else:
-            self.chat_app.show_error_dialog("Error Loading Chats", f"Failed to load chats: {response.error}")
+            self.chat_app.show_error_dialog("Error Loading Chats", response.error)
             self.logger.error(f"Failed to load chats: {response.error}")
 
         self.loading_container.visible = False
@@ -224,10 +224,10 @@ class ChatListScreen(ft.Column):
                     self.page.update()
                     self.logger.info(f"Chat ID {chat['id']} renamed to '{new_name.value}'")
                 else:
-                    self.chat_app.show_error_dialog("Error Updating Chat", f"Failed to update chat: {response.error}")
+                    self.chat_app.show_error_dialog("Error Updating Chat", response.error)
                     self.logger.error(f"Failed to update chat ID {chat['id']}: {response.error}")
             else:
-                self.chat_app.show_error_dialog("Invalid Input", "Please enter a chat name.")
+                self.chat_app.show_error_dialog("Invalid Input", {"detail": "Please enter a chat name."})
                 self.logger.warning("Attempted to update chat without providing a new name.")
 
         new_name = ft.TextField(value=chat['name'], label="Chat Name")
@@ -271,7 +271,7 @@ class ChatListScreen(ft.Column):
                 self.page.update()
                 self.logger.info(f"Deleted chat ID {chat['id']} successfully.")
             else:
-                self.chat_app.show_error_dialog("Error Deleting Chat", f"Failed to delete chat: {response.error}")
+                self.chat_app.show_error_dialog("Error Deleting Chat", response.error)
                 self.logger.error(f"Failed to delete chat ID {chat['id']}: {response.error}")
 
         dialog = ft.AlertDialog(
@@ -308,7 +308,7 @@ class ChatListScreen(ft.Column):
                     self.logger.info(f"No users found matching '{search_term}'.")
                 self.search_results.visible = True
             else:
-                self.chat_app.show_error_dialog("Error Searching Users", f"Failed to search users: {response.error}")
+                self.chat_app.show_error_dialog("Error Searching Users", response.error)
                 self.logger.error(f"Failed to search users: {response.error}")
         else:
             self.search_results.visible = False
@@ -325,7 +325,7 @@ class ChatListScreen(ft.Column):
                 self.chat_app.show_chat(response.data['id'])
                 self.logger.info(f"Chat started with user ID {selected_user_id}")
             else:
-                self.chat_app.show_error_dialog("Error Starting Chat", f"Failed to start chat: {response.error}")
+                self.chat_app.show_error_dialog("Error Starting Chat", response.error)
                 self.logger.error(f"Failed to start chat with user ID {selected_user_id}: {response.error}")
 
         # Reset search fields

@@ -59,7 +59,7 @@ class RegisterScreen(ft.Column):
         else:
             error_message = f"Registration failed (Status {response.status_code})"
             self.logger.error(f"Registration failed for user {self.username.value}: {error_message}\n{response.error}")
-            self.chat_app.show_error_dialog("Registration Error", f"{error_message}\n\n{response.error}")
+            self.chat_app.show_error_dialog("Registration Error", response.error)
 
     def show_success_dialog(self):
         """

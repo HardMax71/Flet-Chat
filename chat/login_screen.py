@@ -52,7 +52,7 @@ class LoginScreen(ft.Column):
         else:
             error_message = f"Login failed (Status {response.status_code})"
             self.logger.error(f"Login failed for user {self.username.value}: {error_message}\n{response.error}")
-            self.chat_app.show_error_dialog("Login Error", f"{error_message}\n\n{response.error}")
+            self.chat_app.show_error_dialog("Login Error", response.error)
 
     def show_register(self, e):
         """

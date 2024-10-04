@@ -101,8 +101,7 @@ class ChatScreen(ft.Column):
                         search_results.options.append(ft.dropdown.Option(key="no_results", text="No users found"))
                     search_results.visible = True
                 else:
-                    self.chat_app.show_error_dialog("Error Searching Users",
-                                                    f"Failed to search users: {response.error}")
+                    self.chat_app.show_error_dialog("Error Searching Users", response.error)
             else:
                 search_results.visible = False
             dialog.update()
@@ -116,7 +115,7 @@ class ChatScreen(ft.Column):
                     dialog.open = False
                     self.page.update()
                 else:
-                    self.chat_app.show_error_dialog("Error Adding Member", f"Failed to add member: {response.error}")
+                    self.chat_app.show_error_dialog("Error Adding Member", response.error)
 
         search_field = ft.TextField(
             hint_text="Search users",
@@ -160,7 +159,7 @@ class ChatScreen(ft.Column):
                 self.load_chat()
                 close_dialog(None)
             else:
-                self.chat_app.show_error_dialog("Error Removing Member", f"Failed to remove member: {response.error}")
+                self.chat_app.show_error_dialog("Error Removing Member", response.error)
 
         response = self.chat_app.api_client.get_chat(self.chat_id)
         if response.success:
@@ -189,7 +188,7 @@ class ChatScreen(ft.Column):
             dialog.open = True
             self.page.update()
         else:
-            self.chat_app.show_error_dialog("Error Loading Members", f"Failed to load chat members: {response.error}")
+            self.chat_app.show_error_dialog("Error Loading Members", response.error)
 
     def did_mount(self):
         """
@@ -302,7 +301,7 @@ class ChatScreen(ft.Column):
             self.update()
             self.logger.info(f"Chat details loaded successfully for chat ID {self.chat_id}")
         else:
-            self.chat_app.show_error_dialog("Error Loading Chat", f"Failed to load chat: {response.error}")
+            self.chat_app.show_error_dialog("Error Loading Chat", response.error)
             self.logger.error(f"Failed to load chat details for chat ID {self.chat_id}: {response.error}")
 
     def send_message(self, e):
@@ -317,7 +316,7 @@ class ChatScreen(ft.Column):
                 self.message_input.update()
                 self.logger.info(f"Message sent successfully in chat ID {self.chat_id}")
             else:
-                self.chat_app.show_error_dialog("Error Sending Message", f"Failed to send message: {response.error}")
+                self.chat_app.show_error_dialog("Error Sending Message", response.error)
                 self.logger.error(f"Failed to send message in chat ID {self.chat_id}: {response.error}")
 
     def load_messages(self):
@@ -354,7 +353,7 @@ class ChatScreen(ft.Column):
             self.message_list.auto_scroll = True
             self.update()
         else:
-            self.chat_app.show_error_dialog("Error Loading Messages", f"Failed to load messages: {response.error}")
+            self.chat_app.show_error_dialog("Error Loading Messages", response.error)
             self.logger.error(f"Failed to load messages for chat ID {self.chat_id}: {response.error}")
 
     def add_message_to_list(self, message):
@@ -533,10 +532,9 @@ class ChatScreen(ft.Column):
                     dialog.open = False
                     self.page.update()
                 else:
-                    self.chat_app.show_error_dialog("Error Updating Message",
-                                                    f"Failed to update message: {response.error}")
+                    self.chat_app.show_error_dialog("Error Updating Message", response.error)
             else:
-                self.chat_app.show_error_dialog("Invalid Input", "Please enter a message content.")
+                self.chat_app.show_error_dialog("Invalid Input", {"detail": "Please enter a message content."})
 
         new_content = ft.TextField(value=message['content'], multiline=True)
         dialog = ft.AlertDialog(
@@ -559,7 +557,7 @@ class ChatScreen(ft.Column):
                 dialog.open = False
                 self.page.update()
             else:
-                self.chat_app.show_error_dialog("Error Deleting Message", f"Failed to delete message: {response.error}")
+                self.chat_app.show_error_dialog("Error Deleting Message", response.error)
 
         dialog = ft.AlertDialog(
             title=ft.Text("Delete Message"),
