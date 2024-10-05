@@ -79,7 +79,6 @@ types-python-dateutil==2.9.0.20240821
 typing_extensions==4.12.2
 urllib3==2.2.2
 uvicorn==0.30.6
-uvloop==0.20.0
 watchdog==4.0.2
 watchfiles==0.24.0
 websockets==13.0.1

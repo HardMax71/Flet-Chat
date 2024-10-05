@@ -92,7 +92,7 @@ This will launch the Flet application, and you should see a window open with the
 
 ## 📚 Documentation
 
-For comprehensive documentation on Flet-Chat, please refer to our [GitHub Wiki](https://github.com/HardMax71/Flet-Chat/wiki/Flet%E2%80%90Chat-Wiki). The wiki provides detailed information on installation, usage, architecture, and more.
+For comprehensive documentation on Flet-Chat, please refer to our [GitHub Wiki](https://github.com/HardMax71/Flet-Chat/wiki). The wiki provides detailed information on installation, usage, architecture, and more.
 
 For API-specific documentation, once the application is running, you can access:
 

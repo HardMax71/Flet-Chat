@@ -197,6 +197,10 @@ class ChatScreen(ft.Column):
         self.logger.info(f"ChatScreen for chat ID {self.chat_id} mounted.")
         self.current_user_id = self.chat_app.api_client.get_current_user().data['id']
         self.load_chat()
+
+        # Make sure UI is attached to the page before loading messages or subscribing
+        self.update()  # Ensure UI components are rendered first
+
         self.load_messages()
         # Subscribe to new messages
         channel_name = f"chat:{self.chat_id}"
@@ -220,6 +224,9 @@ class ChatScreen(ft.Column):
         try:
             message = json.loads(data)
             self.logger.info(f"Received new message for chat ID {self.chat_id}: {message}")
+
+            print(self.message_list)
+            print(self.message_list.controls)
 
             # Check if the message already exists in the list
             existing_message = next((control for control in self.message_list.controls
