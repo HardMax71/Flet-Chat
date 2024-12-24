@@ -118,7 +118,9 @@ class ApiClient:
             return False
 
         try:
-            response = requests.post(f"{self.base_url}/auth/refresh", json={"refresh_token": self.refresh_token})
+            response = requests.post(f"{self.base_url}/auth/refresh",
+                                     json={"refresh_token": self.refresh_token},
+                                     timeout=2.0)  # POST-request with timeout of 2s
             api_response = self._handle_response(response)
 
             if api_response.success:
