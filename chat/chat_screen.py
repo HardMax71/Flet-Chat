@@ -323,7 +323,7 @@ class ChatScreen(ft.Column):
             return
 
         # [ Text(username), Text(message_content), time_info_row ]
-        user_text = column_content.controls[0]   # ft.Text(username)
+        # user_text = column_content.controls[0]   # ft.Text(username)
         message_text = column_content.controls[1]  # ft.Text(content or <deleted>)
         time_info = column_content.controls[2]     # ft.Row([... time info ...])
 
