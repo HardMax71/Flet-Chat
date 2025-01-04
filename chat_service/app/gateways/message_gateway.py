@@ -1,5 +1,5 @@
 # app/infrastructure/message_gateway.py
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from app.gateways.interfaces import IMessageGateway
@@ -54,7 +54,7 @@ class MessageGateway(IMessageGateway):
             message_status = models.MessageStatus(
                 user_id=member.id,
                 is_read=is_author,
-                read_at=datetime.utcnow() if is_author else None
+                read_at=datetime.now(timezone.utc) if is_author else None
             )
             db_message.statuses.append(message_status)
 
@@ -73,7 +73,7 @@ class MessageGateway(IMessageGateway):
         message = result.scalar_one_or_none()
         if message:
             message.content = message_update.content
-            message.updated_at = datetime.utcnow()
+            message.updated_at = datetime.now(timezone.utc)
             uow_message = UoWModel(message, self.uow)
             self.uow.register_dirty(message)
             await self.uow.commit()
@@ -91,7 +91,7 @@ class MessageGateway(IMessageGateway):
         if message:
             message.is_deleted = True
             message.content = "<This message has been deleted>"
-            message.updated_at = datetime.utcnow()
+            message.updated_at = datetime.now(timezone.utc)
             uow_message = UoWModel(message, self.uow)
             self.uow.register_dirty(message)
             await self.uow.commit()

@@ -1,5 +1,5 @@
 # app/tests/unit/test_event_dispatcher.py
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 from app.domain.events import MessageCreated, UserInfo
@@ -22,7 +22,7 @@ async def test_event_dispatcher():
         chat_id=1,
         user_id=1,
         content="Test",
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
         user=UserInfo(id=1, username="testuser"),
         is_deleted=False
     )

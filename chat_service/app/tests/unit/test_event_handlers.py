@@ -1,5 +1,5 @@
 # app/tests/unit/test_event_handlers.py
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock
 
 import pytest
@@ -25,7 +25,7 @@ async def test_publish_message_created(event_handlers, mock_redis_client):
         chat_id=1,
         user_id=1,
         content="Test",
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
         user=UserInfo(id=1, username="testuser"),
         is_deleted=False
     )
@@ -40,8 +40,8 @@ async def test_publish_message_updated(event_handlers, mock_redis_client):
         chat_id=1,
         user_id=1,
         content="Updated",
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
         user=UserInfo(id=1, username="testuser"),
         is_deleted=False
     )
@@ -56,8 +56,8 @@ async def test_publish_message_deleted(event_handlers, mock_redis_client):
         chat_id=1,
         user_id=1,
         content="Deleted message",
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
         user=UserInfo(id=1, username="testuser"),
         is_deleted=True
     )
