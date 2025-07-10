@@ -63,3 +63,8 @@ class UnitOfWork:
             await self.mappers[type(model)].update(model)
         for model in self.deleted.values():
             await self.mappers[type(model)].delete(model)
+        
+        # Clear all pending operations after successful commit
+        self.new.clear()
+        self.dirty.clear()
+        self.deleted.clear()

@@ -53,9 +53,8 @@ class TokenGateway(ITokenGateway):
     async def invalidate_refresh_token(self, refresh_token: str) -> bool:
         token: Optional[UoWModel] = await self.get_by_refresh_token(refresh_token)
         if token:
-            # Invalidate the refresh token
-            token.refresh_token = None
-            self.uow.register_dirty(token)
+            # Delete the token to invalidate it
+            self.uow.register_deleted(token)
             await self.uow.commit()
             return True
         return False

@@ -117,8 +117,8 @@ async def refresh_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Invalidate the old refresh token
-    await token_interactor.invalidate_refresh_token(refresh_token_request.refresh_token)
+    # Delete the old refresh token
+    await token_interactor.delete_token_by_refresh_token(refresh_token_request.refresh_token)
 
     # Create new tokens
     new_access_token, new_access_token_expires = security_service.create_access_token(

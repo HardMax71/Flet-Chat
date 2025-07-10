@@ -172,8 +172,8 @@ class TestTokenGateway:
         result = await token_gateway.invalidate_refresh_token("refresh_token_123")
 
         assert result is True
-        # register_dirty is called when setting the attribute and when calling the method
-        assert mock_uow.register_dirty.call_count >= 1
+        # register_deleted is called when invalidating the token
+        mock_uow.register_deleted.assert_called_once_with(mock_uow_token)
         mock_uow.commit.assert_called_once()
 
     @pytest.mark.asyncio

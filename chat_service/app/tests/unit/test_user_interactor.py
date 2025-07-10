@@ -118,8 +118,8 @@ class TestUserInteractor:
         mock_user_gateway.get_all.assert_called_once_with(10, 5, "test")
 
     @pytest.mark.asyncio
-    async def test_create_user_success(self, user_interactor, mock_user_gateway, mock_user_model):
-        mock_user_gateway.create_user.return_value = mock_user_model
+    async def test_create_user_success(self, user_interactor, mock_user_gateway, mock_uow_user):
+        mock_user_gateway.create_user.return_value = mock_uow_user
 
         user_create = schemas.UserCreate(
             username="newuser",
