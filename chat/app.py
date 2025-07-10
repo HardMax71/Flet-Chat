@@ -30,19 +30,29 @@ class ChatApp:
         self.page.update()
 
     def show_login(self):
-        self.switch_screen(LoginScreen(self))
+        screen = LoginScreen(self)
+        screen.build()
+        self.switch_screen(screen)
 
     def show_register(self):
-        self.switch_screen(RegisterScreen(self))
+        screen = RegisterScreen(self)
+        screen.build()
+        self.switch_screen(screen)
 
     def show_chat_list(self):
-        self.switch_screen(ChatListScreen(self))
+        screen = ChatListScreen(self)
+        screen.build()
+        self.switch_screen(screen)
 
     def show_chat(self, chat_id):
-        self.switch_screen(ChatScreen(self, chat_id))
+        screen = ChatScreen(self, chat_id)
+        screen.build()
+        self.switch_screen(screen)
 
     def show_user_profile(self):
-        self.switch_screen(UserProfileScreen(self))
+        screen = UserProfileScreen(self)
+        screen.build()
+        self.switch_screen(screen)
 
     # all funcs below are for processing str or dict with error message(s) inside
     def show_error_dialog(self, title, error):
@@ -84,16 +94,15 @@ class ChatApp:
 
     def _display_error_dialog(self, title, description):
         def close_dlg(e):
-            dlg.open = False
-            self.page.update()
+            self.page.close(dlg)
 
         dlg = ft.AlertDialog(
+            modal=True,
             title=ft.Text(title),
             content=ft.Text(description),
             actions=[ft.TextButton("OK", on_click=close_dlg)],
             actions_alignment=ft.MainAxisAlignment.END,
+            on_dismiss=close_dlg,
         )
 
-        self.page.dialog = dlg
-        dlg.open = True
-        self.page.update()
+        self.page.open(dlg)

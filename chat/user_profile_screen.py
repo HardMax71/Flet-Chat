@@ -6,7 +6,6 @@ import flet as ft
 class UserProfileScreen(ft.Column):
     def __init__(self, chat_app):
         super().__init__()
-        self.isolated = True
         self.chat_app = chat_app
 
         # Configure logging
@@ -32,39 +31,37 @@ class UserProfileScreen(ft.Column):
             self.email = ft.TextField(label="Email", value=self.user_data['email'])
             self.password = ft.TextField(label="New Password", password=True, can_reveal_password=True)
 
-            return ft.Column(
-                [
-                    ft.Row(
-                        [
-                            ft.IconButton(
-                                icon=ft.icons.ARROW_BACK,
-                                on_click=self.go_back,
-                                tooltip="Back to Chats"
-                            ),
-                            ft.Container(
-                                content=ft.Text("User Profile", style=ft.TextThemeStyle.HEADLINE_MEDIUM),
-                                expand=True,
-                                alignment=ft.alignment.center
-                            ),
-                            ft.Container(width=48),  # This container balances the width of the IconButton
-                        ],
-                        alignment=ft.MainAxisAlignment.SPACE_BETWEEN
-                    ),
-                    self.username,
-                    self.email,
-                    self.password,
-                    ft.ElevatedButton("Save Changes", on_click=self.save_changes),
-                    ft.ElevatedButton("Logout", on_click=self.logout),
-                    ft.ElevatedButton("Delete Account", on_click=self.delete_account, color=ft.colors.RED_400),
-                ],
-                spacing=20,
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                expand=True,
-            )
+            self.controls = [
+                ft.Row(
+                    [
+                        ft.IconButton(
+                            icon=ft.icons.ARROW_BACK,
+                            on_click=self.go_back,
+                            tooltip="Back to Chats"
+                        ),
+                        ft.Container(
+                            content=ft.Text("User Profile", style=ft.TextThemeStyle.HEADLINE_MEDIUM),
+                            expand=True,
+                            alignment=ft.alignment.center
+                        ),
+                        ft.Container(width=48),  # This container balances the width of the IconButton
+                    ],
+                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+                ),
+                self.username,
+                self.email,
+                self.password,
+                ft.ElevatedButton("Save Changes", on_click=self.save_changes),
+                ft.ElevatedButton("Logout", on_click=self.logout),
+                ft.ElevatedButton("Delete Account", on_click=self.delete_account, color=ft.colors.RED_400),
+            ]
+            self.spacing = 20
+            self.horizontal_alignment = ft.CrossAxisAlignment.CENTER
+            self.expand = True
         else:
             self.logger.error(f"Failed to load user profile: {response.error}")
             self.chat_app.show_error_dialog("Error Loading Profile", response.error)
-            return ft.Text("Failed to load profile")
+            self.controls = [ft.Text("Failed to load profile")]
 
     def go_back(self, e):
         """
@@ -89,16 +86,16 @@ class UserProfileScreen(ft.Column):
         if response.success:
             self.logger.info("Profile updated successfully")
             dialog = ft.AlertDialog(
+                modal=True,
                 title=ft.Text("Profile Updated"),
                 content=ft.Text(
                     "Your profile has been updated successfully. You need to log in again for the changes to take effect."),
                 actions=[
                     ft.TextButton("Re-login", on_click=self.relogin),
                 ],
+                on_dismiss=self.relogin,
             )
-            self.page.dialog = dialog
-            dialog.open = True
-            self.page.update()
+            self.chat_app.page.open(dialog)
         else:
             self.logger.error(f"Failed to update profile: {response.error}")
             self.chat_app.show_error_dialog("Error Updating Profile", response.error)
@@ -108,9 +105,8 @@ class UserProfileScreen(ft.Column):
         Handles the re-login process after profile update.
         """
         self.logger.info("Initiating re-login process")
-        if self.page.dialog:
-            self.page.dialog.open = False
-            self.page.update()
+        # Close any open dialogs
+        self.chat_app.page.update()
 
         self.chat_app.api_client.token = None
         self.chat_app.show_login()
@@ -147,28 +143,26 @@ class UserProfileScreen(ft.Column):
             else:
                 self.logger.error(f"Failed to delete account: {response.error}")
                 self.chat_app.show_error_dialog("Error Deleting Account", response.error)
-            dialog.open = False
-            self.page.update()
+            self.chat_app.page.close(dialog)
 
         dialog = ft.AlertDialog(
+            modal=True,
             title=ft.Text("Delete Account"),
             content=ft.Text("Are you sure you want to delete your account? This action cannot be undone."),
             actions=[
                 ft.TextButton("Cancel", on_click=lambda _: self.close_dialog(dialog)),
                 ft.TextButton("Delete", on_click=confirm_delete),
             ],
+            on_dismiss=lambda _: self.close_dialog(dialog),
         )
-        self.page.dialog = dialog
-        dialog.open = True
-        self.page.update()
+        self.chat_app.page.open(dialog)
 
     def close_dialog(self, dialog):
         """
         Closes the current dialog.
         """
         self.logger.info("Closing dialog")
-        dialog.open = False
-        self.page.update()
+        self.chat_app.page.close(dialog)
 
     def did_mount(self):
         """

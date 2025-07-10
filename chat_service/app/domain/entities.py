@@ -12,10 +12,10 @@ class User:
     hashed_password: str
     created_at: datetime = field(default_factory=datetime.utcnow)
     is_active: bool = True
-    chats: List['Chat'] = field(default_factory=list)
-    messages: List['Message'] = field(default_factory=list)
-    tokens: List['Token'] = field(default_factory=list)
-    message_statuses: List['MessageStatus'] = field(default_factory=list)
+    chats: List["Chat"] = field(default_factory=list)
+    messages: List["Message"] = field(default_factory=list)
+    tokens: List["Token"] = field(default_factory=list)
+    message_statuses: List["MessageStatus"] = field(default_factory=list)
 
 
 @dataclass
@@ -24,7 +24,7 @@ class Chat:
     name: str
     created_at: datetime = field(default_factory=datetime.utcnow)
     members: List[User] = field(default_factory=list)
-    messages: List['Message'] = field(default_factory=list)
+    messages: List["Message"] = field(default_factory=list)
 
 
 @dataclass
@@ -38,7 +38,7 @@ class Message:
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: Optional[datetime] = None
     is_deleted: bool = False
-    statuses: List['MessageStatus'] = field(default_factory=list)
+    statuses: List["MessageStatus"] = field(default_factory=list)
 
 
 @dataclass

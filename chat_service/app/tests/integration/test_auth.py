@@ -129,6 +129,31 @@ async def test_refresh_token_invalid(client: AsyncClient):
     assert "Invalid refresh token" in response.json()["detail"]
 
 
+async def test_login_inactive_user(client: AsyncClient, db_session, app_config):
+    from app.infrastructure.models import User
+    from app.infrastructure.security import SecurityService
+
+    security_service = SecurityService(app_config)
+    hashed_password = security_service.get_password_hash("testpassword")
+
+    # Create inactive user
+    inactive_user = User(
+        username="inactive_user",
+        email="inactive@example.com",
+        hashed_password=hashed_password,
+        is_active=False
+    )
+    db_session.add(inactive_user)
+    await db_session.commit()
+
+    response = await client.post(
+        "/api/v1/auth/login",
+        data={"username": "inactive_user", "password": "testpassword"}
+    )
+    assert response.status_code == 401
+    assert "Inactive user" in response.json()["detail"]
+
+
 async def test_refresh_token_reuse(client: AsyncClient, test_user):
     login_response = await client.post(
         "/api/v1/auth/login",

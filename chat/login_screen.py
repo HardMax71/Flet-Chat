@@ -1,10 +1,9 @@
 import logging
 import flet as ft
 
-class LoginScreen(ft.Column):
+class LoginScreen(ft.Container):
     def __init__(self, chat_app):
         super().__init__()
-        self.isolated = True
         self.chat_app = chat_app
 
         # Configure logging
@@ -16,28 +15,28 @@ class LoginScreen(ft.Column):
         if not self.logger.handlers:
             self.logger.addHandler(handler)
 
+        # Initialize UI components
+        self.username = ft.TextField(label="Username")
+        self.password = ft.TextField(label="Password", password=True, can_reveal_password=True)
+
     def build(self):
         """
         Builds the login screen UI.
         """
         self.logger.info("Building login screen UI")
-        self.username = ft.TextField(label="Username")
-        self.password = ft.TextField(label="Password", password=True, can_reveal_password=True)
-
-        return ft.Container(
-            border_radius=10,
-            padding=30,
-            content=ft.Column(
-                [
-                    ft.Text("Login", size=30),
-                    self.username,
-                    self.password,
-                    ft.ElevatedButton("Login", on_click=self.login),
-                    ft.TextButton("Don't have an account? Register", on_click=self.show_register)
-                ],
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                spacing=20
-            )
+        
+        self.border_radius = 10
+        self.padding = 30
+        self.content = ft.Column(
+            [
+                ft.Text("Login", size=30),
+                self.username,
+                self.password,
+                ft.ElevatedButton("Login", on_click=self.login),
+                ft.TextButton("Don't have an account? Register", on_click=self.show_register)
+            ],
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            spacing=20
         )
 
     def login(self, e):

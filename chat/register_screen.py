@@ -3,10 +3,9 @@ import logging
 import flet as ft
 
 
-class RegisterScreen(ft.Column):
+class RegisterScreen(ft.Container):
     def __init__(self, chat_app):
         super().__init__()
-        self.isolated = True
         self.chat_app = chat_app
 
         # Configure logging
@@ -30,21 +29,20 @@ class RegisterScreen(ft.Column):
         Builds the registration screen UI.
         """
         self.logger.info("Building registration screen UI")
-        return ft.Container(
-            border_radius=10,
-            padding=30,
-            content=ft.Column(
-                [
-                    ft.Text("Register", size=30),
-                    self.username,
-                    self.email,
-                    self.password,
-                    ft.ElevatedButton("Register", on_click=self.register),
-                    ft.TextButton("Already have an account? Login", on_click=self.show_login)
-                ],
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                spacing=20
-            )
+        
+        self.border_radius = 10
+        self.padding = 30
+        self.content = ft.Column(
+            [
+                ft.Text("Register", size=30),
+                self.username,
+                self.email,
+                self.password,
+                ft.ElevatedButton("Register", on_click=self.register),
+                ft.TextButton("Already have an account? Login", on_click=self.show_login)
+            ],
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            spacing=20
         )
 
     def register(self, e):
@@ -68,22 +66,21 @@ class RegisterScreen(ft.Column):
         self.logger.info("Showing registration success dialog")
 
         def close_dlg(e):
-            dlg.open = False
-            self.chat_app.page.update()
+            self.chat_app.page.close(dlg)
             self.chat_app.show_login()
 
         dlg = ft.AlertDialog(
+            modal=True,
             title=ft.Text("Registration Successful"),
             content=ft.Text("Your account has been created successfully. Please log in."),
             actions=[
                 ft.ElevatedButton("Go to Login", on_click=close_dlg)
             ],
             actions_alignment=ft.MainAxisAlignment.CENTER,
+            on_dismiss=close_dlg,
         )
 
-        self.chat_app.page.dialog = dlg
-        dlg.open = True
-        self.chat_app.page.update()
+        self.chat_app.page.open(dlg)
 
     def show_login(self, e):
         """

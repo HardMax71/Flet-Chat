@@ -9,7 +9,6 @@ import flet as ft
 class ChatScreen(ft.Column):
     def __init__(self, chat_app, chat_id):
         super().__init__()
-        self.isolated = True
         self.chat_app = chat_app
         self.chat_id = chat_id
         self.current_user_id = None
@@ -44,48 +43,51 @@ class ChatScreen(ft.Column):
           - self.message_list for chat messages
           - A row for the message input and 'Send' button
         """
-        return ft.Column(
-            [
-                ft.Row(
-                    [
-                        ft.IconButton(
-                            icon=ft.icons.ARROW_BACK,
-                            on_click=self.go_back,
-                            tooltip="Back to Chats"
-                        ),
-                        ft.Container(
-                            content=self.chat_name,
-                            expand=True,
-                            alignment=ft.alignment.center
-                        ),
-                        self.create_options_menu(),
-                    ],
-                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN
-                ),
-                self.message_list,
-                ft.Row(
-                    [
-                        self.message_input,
-                        ft.IconButton(
-                            icon=ft.icons.SEND,
-                            on_click=self.send_message
-                        )
-                    ],
-                    spacing=10
-                )
-            ],
-            expand=True,
-            spacing=20,
-        )
+        self.controls = [
+            ft.Row(
+                [
+                    ft.IconButton(
+                        icon=ft.icons.ARROW_BACK,
+                        on_click=self.go_back,
+                        tooltip="Back to Chats"
+                    ),
+                    ft.Container(
+                        content=self.chat_name,
+                        expand=True,
+                        alignment=ft.alignment.center
+                    ),
+                    self.create_options_menu(),
+                ],
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+            ),
+            self.message_list,
+            ft.Row(
+                [
+                    self.message_input,
+                    ft.IconButton(
+                        icon=ft.icons.SEND,
+                        on_click=self.send_message
+                    )
+                ],
+                spacing=10
+            )
+        ]
+        self.expand = True
+        self.spacing = 20
 
     def create_options_menu(self):
         """
-        The triple-dot (MORE_VERT) popup menu for chat-level actions, e.g. Add/Remove member.
+        The triple-dot (MORE_VERT) popup menu for chat-level actions, e.g. Chat Info, Add/Remove member.
         """
         return ft.PopupMenuButton(
             icon=ft.icons.MORE_VERT,
             tooltip="Chat Options",
             items=[
+                ft.PopupMenuItem(
+                    text="Chat Info",
+                    icon=ft.icons.INFO,
+                    on_click=self.show_chat_info_dialog
+                ),
                 ft.PopupMenuItem(
                     text="Add Member",
                     icon=ft.icons.PERSON_ADD,
@@ -99,94 +101,159 @@ class ChatScreen(ft.Column):
             ],
         )
 
+    def show_chat_info_dialog(self, e):
+        """
+        Display a dialog with detailed information about the chat and its members.
+        """
+        def close_dialog(_e):
+            self.chat_app.page.close(dialog)
+
+        def format_member_info(member):
+            """Format member information for display with proper truncation"""
+            username = member['username']
+            # Truncate long usernames
+            if len(username) > 25:
+                username = username[:25] + "..."
+            
+            if member['id'] == self.current_user_id:
+                return f"You ({username})"
+            else:
+                return username
+
+        # Get current chat data
+        chat_data = getattr(self, 'current_chat_data', {})
+        chat_name = chat_data.get('name', 'Unknown Chat')
+        members = chat_data.get('members', [])
+        
+        # Truncate long chat name
+        display_chat_name = chat_name
+        if len(chat_name) > 40:
+            display_chat_name = chat_name[:40] + "..."
+        
+        # Create chat info content
+        chat_info_content = ft.Column([
+            # Chat ID at top in italic
+            ft.Container(
+                content=ft.Text(f"Chat ID: {self.chat_id}", style=ft.TextThemeStyle.BODY_SMALL, italic=True, color=ft.colors.GREY_600),
+                margin=ft.margin.only(bottom=10)
+            ),
+            
+            # Chat name section
+            ft.Container(
+                content=ft.Text(display_chat_name, style=ft.TextThemeStyle.TITLE_MEDIUM, weight=ft.FontWeight.BOLD),
+                margin=ft.margin.only(bottom=20)
+            ),
+            
+            # Members section
+            ft.Container(
+                content=ft.Column([
+                    ft.Text(f"Members ({len(members)})", style=ft.TextThemeStyle.TITLE_SMALL, weight=ft.FontWeight.BOLD),
+                    ft.Divider(),
+                    ft.Column([
+                        ft.Container(
+                            content=ft.Text(format_member_info(member), style=ft.TextThemeStyle.BODY_MEDIUM),
+                            padding=ft.padding.symmetric(vertical=8, horizontal=12),
+                            bgcolor=ft.colors.BLUE_50 if member['id'] == self.current_user_id else ft.colors.GREY_50,
+                            border_radius=8,
+                            margin=ft.margin.only(bottom=5)
+                        )
+                        for member in members
+                    ], scroll=ft.ScrollMode.AUTO)
+                ])
+            )
+        ], scroll=ft.ScrollMode.AUTO)
+
+        dialog = ft.AlertDialog(
+            modal=True,
+            title=ft.Text("Chat Information"),
+            content=ft.Container(
+                content=chat_info_content,
+                width=400,
+                height=500
+            ),
+            actions=[
+                ft.TextButton("Close", on_click=close_dialog),
+            ],
+            on_dismiss=close_dialog,
+        )
+
+        self.chat_app.page.open(dialog)
+
     def show_add_member_dialog(self, e):
         """
         Display a dialog for searching and adding a member to the chat.
         """
         def close_dialog(_e):
-            dialog.open = False
-            self.page.update()
+            self.chat_app.page.close(dialog)
 
-        def search_users(_e):
-            search_term = search_field.value.strip()
-            if len(search_term) >= 1:
-                response = self.chat_app.api_client.search_users(search_term)
-                if response.success:
-                    search_results.options.clear()
-                    if response.data:
-                        for user in response.data:
-                            search_results.options.append(
-                                ft.dropdown.Option(
-                                    key=str(user['id']),
-                                    text=user['username']
-                                )
-                            )
-                    else:
-                        search_results.options.append(
+        def load_users_for_dialog():
+            """Load all users for the combobox"""
+            response = self.chat_app.api_client.search_users("")  # Empty search to get all users
+            if response.success:
+                user_combobox.options.clear()
+                if response.data:
+                    for user in response.data:
+                        user_combobox.options.append(
                             ft.dropdown.Option(
-                                key="no_results",
-                                text="No users found"
+                                key=str(user['id']),
+                                text=user['username']
                             )
                         )
-                    search_results.visible = True
                 else:
-                    self.chat_app.show_error_dialog("Error Searching Users", response.error)
+                    user_combobox.options.append(
+                        ft.dropdown.Option(
+                            key="no_users",
+                            text="No users found"
+                        )
+                    )
+                # Update the page instead of the specific control
+                self.chat_app.page.update()
             else:
-                search_results.visible = False
-            dialog.update()
+                self.chat_app.show_error_dialog("Error Loading Users", response.error)
 
         def add_member(_e):
-            selected_user_id = search_results.value
-            if selected_user_id and selected_user_id != "no_results":
+            selected_user_id = user_combobox.value
+            if selected_user_id and selected_user_id not in ["no_users", ""]:
                 response = self.chat_app.api_client.add_chat_member(
                     self.chat_id,
                     int(selected_user_id)
                 )
                 if response.success:
                     self.load_chat()
-                    dialog.open = False
-                    self.page.update()
+                    self.chat_app.page.close(dialog)
                 else:
                     self.chat_app.show_error_dialog("Error Adding Member", response.error)
 
-        search_field = ft.TextField(
-            hint_text="Search users",
-            expand=True,
-            on_submit=search_users
-        )
-        search_button = ft.IconButton(
-            icon=ft.icons.SEARCH,
-            on_click=search_users,
-            tooltip="Search",
-        )
-        search_results = ft.Dropdown(
+        user_combobox = ft.Dropdown(
+            hint_text="Search and select user to add",
+            editable=True,
+            enable_search=True,
+            enable_filter=True,
+            width=300,
             options=[],
-            visible=False,
+            on_change=add_member,
         )
 
         dialog = ft.AlertDialog(
+            modal=True,
             title=ft.Text("Add Member"),
-            content=ft.Column([
-                ft.Row([search_field, search_button]),
-                search_results,
-            ]),
+            content=user_combobox,
             actions=[
                 ft.TextButton("Cancel", on_click=close_dialog),
-                ft.TextButton("Add", on_click=add_member),
             ],
+            on_dismiss=close_dialog,
         )
 
-        self.page.dialog = dialog
-        dialog.open = True
-        self.page.update()
+        # Open dialog first, then load users
+        self.chat_app.page.open(dialog)
+        load_users_for_dialog()
 
     def show_remove_member_dialog(self, e):
         """
         Opens a dialog to remove a member from the chat.
         """
         def close_dialog(_e):
-            dialog.open = False
-            self.page.update()
+            self.chat_app.page.close(dialog)
 
         def remove_member(user_id):
             response = self.chat_app.api_client.remove_chat_member(self.chat_id, user_id)
@@ -212,16 +279,16 @@ class ChatScreen(ft.Column):
             ])
 
             dialog = ft.AlertDialog(
+                modal=True,
                 title=ft.Text("Remove Member"),
                 content=member_list,
                 actions=[
                     ft.TextButton("Close", on_click=close_dialog),
                 ],
+                on_dismiss=close_dialog,
             )
 
-            self.page.dialog = dialog
-            dialog.open = True
-            self.page.update()
+            self.chat_app.page.open(dialog)
         else:
             self.chat_app.show_error_dialog("Error Loading Members", response.error)
 
@@ -288,7 +355,7 @@ class ChatScreen(ft.Column):
                 self.add_message_to_list(message)
 
             self.scroll_to_bottom()
-            self.page.update()
+            self.chat_app.page.update()
 
             # Mark the new message as read if it's not from the current user
             if message['user']['id'] != self.current_user_id:
@@ -378,6 +445,8 @@ class ChatScreen(ft.Column):
         self.logger.info(f"Loading chat details for chat ID {self.chat_id}")
         response = self.chat_app.api_client.get_chat(self.chat_id)
         if response.success:
+            # Store chat data for use in info dialog
+            self.current_chat_data = response.data
             self.chat_name.value = response.data['name']
             self.update()
             self.logger.info(f"Chat details loaded for chat ID {self.chat_id}")
@@ -454,6 +523,12 @@ class ChatScreen(ft.Column):
         Creates a new Row+GestureDetector+Container with the message info and appends it
         to self.message_list.
         """
+        # Remove "No messages yet" placeholder if it exists
+        if (len(self.message_list.controls) == 1 
+            and isinstance(self.message_list.controls[0], ft.Text) 
+            and "No messages yet" in self.message_list.controls[0].value):
+            self.message_list.controls.clear()
+        
         is_current_user = (message['user']['id'] == self.current_user_id)
         message_color = ft.colors.BLUE_700 if is_current_user else ft.colors.GREY_200
         text_color = ft.colors.WHITE if is_current_user else ft.colors.BLACK
@@ -570,9 +645,7 @@ class ChatScreen(ft.Column):
             updated_message = message  # fallback if we can't fetch fresh data
 
         def close_dialog(_e):
-            options_dialog.open = False
-            self.page.dialog = None
-            self.page.update()
+            self.chat_app.page.close(options_dialog)
 
         # "Read by:" section
         read_status_title = ft.Text("Read by:", style=ft.TextThemeStyle.TITLE_SMALL, weight=ft.FontWeight.BOLD)
@@ -634,6 +707,7 @@ class ChatScreen(ft.Column):
             ])
 
         options_dialog = ft.AlertDialog(
+            modal=True,
             title=ft.Text("Message Options", style=ft.TextThemeStyle.HEADLINE_SMALL),
             content=ft.Container(
                 content=ft.Column(options, tight=True, scroll=ft.ScrollMode.AUTO),
@@ -642,11 +716,10 @@ class ChatScreen(ft.Column):
             actions=[
                 ft.TextButton("Close", on_click=close_dialog),
             ],
+            on_dismiss=close_dialog,
         )
 
-        self.page.dialog = options_dialog
-        options_dialog.open = True
-        self.page.update()
+        self.chat_app.page.open(options_dialog)
 
     def edit_message(self, message):
         """
@@ -659,8 +732,7 @@ class ChatScreen(ft.Column):
                 )
                 if resp.success:
                     self.load_messages()
-                    dialog.open = False
-                    self.page.update()
+                    self.chat_app.page.close(dialog)
                 else:
                     self.chat_app.show_error_dialog("Error Updating Message", resp.error)
             else:
@@ -668,16 +740,16 @@ class ChatScreen(ft.Column):
 
         new_content = ft.TextField(value=message['content'], multiline=True)
         dialog = ft.AlertDialog(
+            modal=True,
             title=ft.Text("Edit Message"),
             content=new_content,
             actions=[
                 ft.TextButton("Cancel", on_click=lambda _: self.close_dialog(dialog)),
                 ft.TextButton("Update", on_click=update_message_content),
             ],
+            on_dismiss=lambda _: self.close_dialog(dialog),
         )
-        self.page.dialog = dialog
-        dialog.open = True
-        self.page.update()
+        self.chat_app.page.open(dialog)
 
     def delete_message(self, message):
         """
@@ -687,27 +759,24 @@ class ChatScreen(ft.Column):
             resp = self.chat_app.api_client.delete_message(message['id'])
             if resp.success:
                 self.load_messages()
-                dialog.open = False
-                self.page.update()
+                self.chat_app.page.close(dialog)
             else:
                 self.chat_app.show_error_dialog("Error Deleting Message", resp.error)
 
         dialog = ft.AlertDialog(
+            modal=True,
             title=ft.Text("Delete Message"),
             content=ft.Text("Are you sure you want to delete this message?"),
             actions=[
                 ft.TextButton("Cancel", on_click=lambda _: self.close_dialog(dialog)),
                 ft.TextButton("Delete", on_click=confirm_delete),
             ],
+            on_dismiss=lambda _: self.close_dialog(dialog),
         )
-        self.page.dialog = dialog
-        dialog.open = True
-        self.page.update()
+        self.chat_app.page.open(dialog)
 
     def close_dialog(self, dialog):
         """
         Closes an AlertDialog and clears the page.dialog reference.
         """
-        dialog.open = False
-        self.page.dialog = None
-        self.page.update()
+        self.chat_app.page.close(dialog)

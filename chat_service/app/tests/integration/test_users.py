@@ -134,3 +134,43 @@ async def test_user_soft_delete(client: AsyncClient, auth_header):
         data={"username": data["username"], "password": "testpassword"}
     )
     assert login_response.status_code == 401
+
+
+async def test_get_users_unauthorized(client: AsyncClient):
+    response = await client.get("/api/v1/users/")
+    assert response.status_code == 401
+
+
+async def test_get_users_me_unauthorized(client: AsyncClient):
+    response = await client.get("/api/v1/users/me")
+    assert response.status_code == 401
+
+
+async def test_update_user_me_unauthorized(client: AsyncClient):
+    response = await client.put(
+        "/api/v1/users/me",
+        json={"username": "newusername"}
+    )
+    assert response.status_code == 401
+
+
+async def test_delete_user_me_unauthorized(client: AsyncClient):
+    response = await client.delete("/api/v1/users/me")
+    assert response.status_code == 401
+
+
+async def test_search_users_unauthorized(client: AsyncClient):
+    response = await client.get("/api/v1/users/search?query=test")
+    assert response.status_code == 401
+
+
+async def test_search_users_empty_query(client: AsyncClient, auth_header):
+    response = await client.get("/api/v1/users/search?query=", headers=auth_header)
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
+
+
+async def test_search_users_no_matches(client: AsyncClient, auth_header):
+    response = await client.get("/api/v1/users/search?query=nonexistentuser12345", headers=auth_header)
+    assert response.status_code == 200
+    assert response.json() == []

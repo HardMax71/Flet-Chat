@@ -5,7 +5,7 @@ from typing import Protocol, TypeVar
 from app.infrastructure import models
 from sqlalchemy.ext.asyncio import AsyncSession
 
-ModelT = TypeVar('ModelT')
+ModelT = TypeVar("ModelT", contravariant=True)
 
 
 class DataMapper(Protocol[ModelT]):

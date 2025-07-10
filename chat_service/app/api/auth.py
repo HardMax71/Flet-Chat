@@ -2,8 +2,13 @@
 import datetime
 from datetime import timedelta
 
-from app.api.dependencies import get_security_service, get_user_interactor, get_token_interactor, get_config, \
-    oauth2_scheme
+from app.api.dependencies import (
+    get_security_service,
+    get_user_interactor,
+    get_token_interactor,
+    get_config,
+    oauth2_scheme,
+)
 from app.config import AppConfig
 from app.infrastructure import schemas
 from app.infrastructure.security import SecurityService
@@ -17,13 +22,15 @@ router = APIRouter()
 
 @router.post("/login", response_model=schemas.TokenResponse)
 async def login_for_access_token(
-        form_data: OAuth2PasswordRequestForm = Depends(),
-        user_interactor: UserInteractor = Depends(get_user_interactor),
-        token_interactor: TokenInteractor = Depends(get_token_interactor),
-        config: AppConfig = Depends(get_config),
-        security_service: SecurityService = Depends(get_security_service)
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    user_interactor: UserInteractor = Depends(get_user_interactor),
+    token_interactor: TokenInteractor = Depends(get_token_interactor),
+    config: AppConfig = Depends(get_config),
+    security_service: SecurityService = Depends(get_security_service),
 ):
-    user = await user_interactor.verify_user_password(form_data.username, form_data.password)
+    user = await user_interactor.verify_user_password(
+        form_data.username, form_data.password
+    )
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -37,7 +44,9 @@ async def login_for_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    access_token_expires = datetime.timedelta(minutes=config.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token_expires = datetime.timedelta(
+        minutes=config.ACCESS_TOKEN_EXPIRE_MINUTES
+    )
     access_token, access_expire = security_service.create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
@@ -50,7 +59,7 @@ async def login_for_access_token(
         refresh_token=refresh_token,
         token_type="bearer",
         expires_at=access_expire,
-        user_id=user.id
+        user_id=user.id,
     )
     token = await token_interactor.create_token(token_create)
 
@@ -59,8 +68,8 @@ async def login_for_access_token(
 
 @router.post("/register", response_model=schemas.User)
 async def register_user(
-        user: schemas.UserCreate,
-        user_interactor: UserInteractor = Depends(get_user_interactor)
+    user: schemas.UserCreate,
+    user_interactor: UserInteractor = Depends(get_user_interactor),
 ):
     existing_user = await user_interactor.get_user_by_username(user.username)
     if existing_user:
@@ -76,13 +85,15 @@ async def register_user(
 
 @router.post("/refresh", response_model=schemas.TokenResponse)
 async def refresh_token(
-        refresh_token_request: schemas.RefreshTokenRequest,
-        token_interactor: TokenInteractor = Depends(get_token_interactor),
-        user_interactor: UserInteractor = Depends(get_user_interactor),
-        security_service: SecurityService = Depends(get_security_service),
-        config: AppConfig = Depends(get_config)
+    refresh_token_request: schemas.RefreshTokenRequest,
+    token_interactor: TokenInteractor = Depends(get_token_interactor),
+    user_interactor: UserInteractor = Depends(get_user_interactor),
+    security_service: SecurityService = Depends(get_security_service),
+    config: AppConfig = Depends(get_config),
 ):
-    token = await token_interactor.get_token_by_refresh_token(refresh_token_request.refresh_token)
+    token = await token_interactor.get_token_by_refresh_token(
+        refresh_token_request.refresh_token
+    )
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -112,7 +123,7 @@ async def refresh_token(
     # Create new tokens
     new_access_token, new_access_token_expires = security_service.create_access_token(
         data={"sub": user.username},
-        expires_delta=timedelta(minutes=config.ACCESS_TOKEN_EXPIRE_MINUTES)
+        expires_delta=timedelta(minutes=config.ACCESS_TOKEN_EXPIRE_MINUTES),
     )
     new_refresh_token, _ = security_service.create_refresh_token(
         data={"sub": user.username}
@@ -123,7 +134,7 @@ async def refresh_token(
         refresh_token=new_refresh_token,
         token_type="bearer",
         expires_at=new_access_token_expires,
-        user_id=user.id
+        user_id=user.id,
     )
     new_token = await token_interactor.create_token(token_create)
 
@@ -132,10 +143,12 @@ async def refresh_token(
 
 @router.post("/logout")
 async def logout(
-        token: str = Depends(oauth2_scheme),
-        token_interactor: TokenInteractor = Depends(get_token_interactor)
+    token: str = Depends(oauth2_scheme),
+    token_interactor: TokenInteractor = Depends(get_token_interactor),
 ):
     deleted = await token_interactor.delete_token_by_access_token(token)
     if not deleted:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+        )
     return {"message": "Successfully logged out"}

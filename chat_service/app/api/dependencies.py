@@ -1,4 +1,5 @@
 # app/api/dependencies.py
+from typing import AsyncGenerator
 from app.config import AppConfig
 from app.gateways.chat_gateway import ChatGateway
 from app.gateways.message_gateway import MessageGateway
@@ -31,7 +32,7 @@ def get_event_dispatcher(request: Request) -> EventDispatcher:
     return request.app.state.event_dispatcher
 
 
-async def get_session(request: Request) -> AsyncSession:
+async def get_session(request: Request) -> AsyncGenerator[AsyncSession, None]:
     async with request.app.state.database.session() as session:
         try:
             yield session
@@ -45,54 +46,61 @@ async def get_uow() -> UnitOfWork:
     return UnitOfWork()
 
 
-async def get_user_gateway(session: AsyncSession = Depends(get_session),
-                           uow: UnitOfWork = Depends(get_uow)):
+async def get_user_gateway(
+    session: AsyncSession = Depends(get_session), uow: UnitOfWork = Depends(get_uow)
+):
     return UserGateway(session, uow)
 
 
-async def get_chat_gateway(session: AsyncSession = Depends(get_session), uow: UnitOfWork = Depends(get_uow)):
+async def get_chat_gateway(
+    session: AsyncSession = Depends(get_session), uow: UnitOfWork = Depends(get_uow)
+):
     return ChatGateway(session, uow)
 
 
-async def get_message_gateway(session: AsyncSession = Depends(get_session), uow: UnitOfWork = Depends(get_uow)):
+async def get_message_gateway(
+    session: AsyncSession = Depends(get_session), uow: UnitOfWork = Depends(get_uow)
+):
     return MessageGateway(session, uow)
 
 
-async def get_token_gateway(session: AsyncSession = Depends(get_session), uow: UnitOfWork = Depends(get_uow)):
+async def get_token_gateway(
+    session: AsyncSession = Depends(get_session), uow: UnitOfWork = Depends(get_uow)
+):
     return TokenGateway(session, uow)
 
 
 async def get_user_interactor(
-        security_service: SecurityService = Depends(get_security_service),
-        user_gateway: UserGateway = Depends(get_user_gateway)
+    security_service: SecurityService = Depends(get_security_service),
+    user_gateway: UserGateway = Depends(get_user_gateway),
 ):
     return UserInteractor(security_service, user_gateway)
 
 
 async def get_chat_interactor(
-        chat_gateway: ChatGateway = Depends(get_chat_gateway),
-        user_gateway: UserGateway = Depends(get_user_gateway)
+    chat_gateway: ChatGateway = Depends(get_chat_gateway),
+    user_gateway: UserGateway = Depends(get_user_gateway),
 ):
     return ChatInteractor(chat_gateway, user_gateway)
 
 
 async def get_message_interactor(
-        message_gateway: MessageGateway = Depends(get_message_gateway)
+    message_gateway: MessageGateway = Depends(get_message_gateway),
 ):
     return MessageInteractor(message_gateway)
 
 
 async def get_token_interactor(
-        token_gateway: TokenGateway = Depends(get_token_gateway)
+    token_gateway: TokenGateway = Depends(get_token_gateway),
 ):
     return TokenInteractor(token_gateway)
 
 
 async def get_current_user(
-        token: str = Depends(oauth2_scheme),
-        security_service: SecurityService = Depends(get_security_service),
-        user_gateway: UserGateway = Depends(get_user_gateway),
-        token_gateway: TokenGateway = Depends(get_token_gateway)
+    token: str = Depends(oauth2_scheme),
+    security_service: SecurityService = Depends(get_security_service),
+    user_gateway: UserGateway = Depends(get_user_gateway),
+    token_gateway: TokenGateway = Depends(get_token_gateway),
 ) -> schemas.User:
     username = security_service.decode_access_token(token)
     if username is None:
@@ -120,7 +128,7 @@ async def get_current_user(
 
 
 async def get_current_active_user(
-        current_user: schemas.User = Depends(get_current_user)
+    current_user: schemas.User = Depends(get_current_user),
 ) -> schemas.User:
     if not current_user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")

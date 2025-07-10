@@ -6,7 +6,6 @@ import flet as ft
 class ChatListScreen(ft.Column):
     def __init__(self, chat_app):
         super().__init__()
-        self.isolated = True
         self.chat_app = chat_app
         self.chat_subscriptions = {}  # Keep track of subscribed chats
         self.current_user_id = None
@@ -22,20 +21,16 @@ class ChatListScreen(ft.Column):
 
         # GUI elements
         self.loading_indicator = ft.ProgressRing(visible=False)
-        self.search_input = ft.TextField(
-            hint_text="Search users",
-            expand=8,
-        )
-        self.search_button = ft.IconButton(
-            icon=ft.icons.SEARCH,
-            on_click=self.search_users,
-            tooltip="Search",
-        )
-        self.search_results = ft.Dropdown(
+        self.user_search_combobox = ft.Dropdown(
+            hint_text="Search users to start a new chat",
+            editable=True,
+            enable_search=True,
+            enable_filter=True,
             width=400,
             options=[],
-            visible=False,
-            on_change=self.start_chat_with_user
+            on_change=self.start_chat_with_user,
+            on_focus=self.on_search_focus,
+            on_blur=self.on_search_blur
         )
 
         self.chat_list = ft.ListView(spacing=10, expand=True)
@@ -61,29 +56,26 @@ class ChatListScreen(ft.Column):
           - A dropdown for search results
           - A stack with either the chat list or the loading container
         """
-        return ft.Column(
-            [
-                ft.Row(
-                    [
-                        ft.IconButton(icon=ft.icons.PERSON, on_click=self.show_profile, tooltip="Profile"),
-                        ft.Text("Chats", style=ft.TextThemeStyle.HEADLINE_MEDIUM),
-                        ft.IconButton(icon=ft.icons.REFRESH, on_click=self.load_chats, tooltip="Refresh"),
-                    ],
-                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN
-                ),
-                ft.Row([self.search_input, self.search_button]),
-                self.search_results,
-                ft.Stack(
-                    [
-                        self.chat_list,
-                        self.loading_container
-                    ],
-                    expand=True
-                )
-            ],
-            expand=True,
-            spacing=20,
-        )
+        self.controls = [
+            ft.Row(
+                [
+                    ft.IconButton(icon=ft.icons.PERSON, on_click=self.show_profile, tooltip="Profile"),
+                    ft.Text("Chats", style=ft.TextThemeStyle.HEADLINE_MEDIUM),
+                    ft.IconButton(icon=ft.icons.REFRESH, on_click=self.load_chats, tooltip="Refresh"),
+                ],
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+            ),
+            self.user_search_combobox,
+            ft.Stack(
+                [
+                    self.chat_list,
+                    self.loading_container
+                ],
+                expand=True
+            )
+        ]
+        self.expand = True
+        self.spacing = 20
 
     def did_mount(self):
         """
@@ -137,16 +129,28 @@ class ChatListScreen(ft.Column):
                 for chat in response.data:
                     chat_name = ft.Text(chat['name'], style=ft.TextThemeStyle.TITLE_MEDIUM)
 
-                    # Prepare the list of chat members
+                    # Prepare the list of chat members with smart display
                     members = []
                     for member in chat['members']:
                         if member['id'] == self.current_user_id:
                             members.append("You")
                         else:
-                            members.append(member['username'])
+                            # Truncate long usernames to max 10 characters for space efficiency
+                            username = member['username']
+                            if len(username) > 10:
+                                username = username[:10] + "…"
+                            members.append(username)
+
+                    # Show first 3 members + count for remaining
+                    if len(members) <= 3:
+                        members_display = ", ".join(members)
+                    else:
+                        first_three = members[:3]
+                        remaining_count = len(members) - 3
+                        members_display = f"{', '.join(first_three)}, +{remaining_count}"
 
                     members_text = ft.Text(
-                        ", ".join(members),
+                        members_display,
                         style=ft.TextThemeStyle.BODY_SMALL,
                         color=ft.colors.GREY_700
                     )
@@ -248,8 +252,7 @@ class ChatListScreen(ft.Column):
             self.load_chats()
 
             # If we are still mounted, this is safe:
-            if self.page:
-                self.page.update()
+            self.chat_app.page.update()
             self.logger.info(f"Updated UI for unread count on chat ID {chat_id}")
         except json.JSONDecodeError as e:
             self.logger.error(f"Failed to decode unread count message: {str(e)}")
@@ -265,9 +268,7 @@ class ChatListScreen(ft.Column):
                 response = self.chat_app.api_client.update_chat(chat['id'], {"name": new_name.value.strip()})
                 if response.success:
                     self.load_chats()
-                    dialog.open = False
-                    if self.page:
-                        self.page.update()
+                    self.chat_app.page.close(dialog)
                     self.logger.info(f"Chat ID {chat['id']} renamed to '{new_name.value}'")
                 else:
                     self.chat_app.show_error_dialog("Error Updating Chat", response.error)
@@ -278,17 +279,16 @@ class ChatListScreen(ft.Column):
 
         new_name = ft.TextField(value=chat['name'], label="Chat Name")
         dialog = ft.AlertDialog(
+            modal=True,
             title=ft.Text("Edit Chat Name"),
             content=new_name,
             actions=[
                 ft.TextButton("Cancel", on_click=lambda _: self.close_dialog(dialog)),
                 ft.TextButton("Update", on_click=update_chat_name),
             ],
+            on_dismiss=lambda _: self.close_dialog(dialog),
         )
-        self.page.dialog = dialog
-        dialog.open = True
-        if self.page:
-            self.page.update()
+        self.chat_app.page.open(dialog)
         self.logger.info(f"Opened edit chat dialog for chat ID {chat['id']}")
 
     def delete_chat(self, chat):
@@ -311,26 +311,24 @@ class ChatListScreen(ft.Column):
                             color=ft.colors.GREY_500
                         )
                     )
-                if self.page:
-                    self.page.update()
-                dialog.open = False
+                self.chat_app.page.update()
+                self.chat_app.page.close(dialog)
                 self.logger.info(f"Deleted chat ID {chat['id']} successfully.")
             else:
                 self.chat_app.show_error_dialog("Error Deleting Chat", response.error)
                 self.logger.error(f"Failed to delete chat ID {chat['id']}: {response.error}")
 
         dialog = ft.AlertDialog(
+            modal=True,
             title=ft.Text("Delete Chat"),
             content=ft.Text(f"Are you sure you want to delete the chat '{chat['name']}'?"),
             actions=[
                 ft.TextButton("Cancel", on_click=lambda _: self.close_dialog(dialog)),
                 ft.TextButton("Delete", on_click=confirm_delete),
             ],
+            on_dismiss=lambda _: self.close_dialog(dialog),
         )
-        self.page.dialog = dialog
-        dialog.open = True
-        if self.page:
-            self.page.update()
+        self.chat_app.page.open(dialog)
         self.logger.info(f"Opened delete chat dialog for chat ID {chat['id']}")
 
     def show_profile(self, _e):
@@ -340,63 +338,68 @@ class ChatListScreen(ft.Column):
         self.chat_app.show_user_profile()
         self.logger.info("Navigated to user profile.")
 
-    def search_users(self, _e):
+    def on_search_focus(self, _e):
         """
-        Searches for users matching the search_input.
-        Results appear in self.search_results dropdown.
+        Called when the search combobox gains focus.
         """
-        search_term = self.search_input.value.strip()
-        if len(search_term) >= 1:
-            self.logger.info(f"Searching users with term: '{search_term}'")
-            response = self.chat_app.api_client.search_users(search_term)
-            if response.success:
-                self.search_results.options.clear()
-                if response.data:
-                    for user in response.data:
-                        self.search_results.options.append(
-                            ft.dropdown.Option(
-                                key=str(user['id']),
-                                text=user['username']
-                            )
-                        )
-                    self.logger.info(f"Found {len(response.data)} users matching '{search_term}'.")
-                else:
-                    self.search_results.options.append(
-                        ft.dropdown.Option(key="no_results", text="No users found")
-                    )
-                    self.logger.info(f"No users found matching '{search_term}'.")
-                self.search_results.visible = True
-            else:
-                self.chat_app.show_error_dialog("Error Searching Users", response.error)
-                self.logger.error(f"Failed to search users: {response.error}")
-        else:
-            self.search_results.visible = False
-            self.logger.info("Search term is too short. Hiding search results.")
+        self.logger.info("Search combobox focused")
+        # Load all users when focus is gained
+        self.load_all_users()
 
-        if self.page:
-            self.page.update()
+    def on_search_blur(self, _e):
+        """
+        Called when the search combobox loses focus.
+        """
+        self.logger.info("Search combobox lost focus")
+
+    def load_all_users(self):
+        """
+        Loads all users for the combobox when focused.
+        """
+        self.logger.info("Loading all users for search combobox")
+        response = self.chat_app.api_client.search_users("")  # Empty search to get all users
+        if response.success:
+            self.user_search_combobox.options.clear()
+            if response.data:
+                for user in response.data:
+                    self.user_search_combobox.options.append(
+                        ft.dropdown.Option(
+                            key=str(user['id']),
+                            text=user['username']
+                        )
+                    )
+                self.logger.info(f"Loaded {len(response.data)} users for search combobox.")
+            else:
+                self.user_search_combobox.options.append(
+                    ft.dropdown.Option(
+                        key="no_users",
+                        text="No users found"
+                    )
+                )
+                self.logger.info("No users found for search combobox.")
+            self.user_search_combobox.update()
+        else:
+            self.chat_app.show_error_dialog("Error Loading Users", response.error)
+            self.logger.error(f"Failed to load users: {response.error}")
 
     def start_chat_with_user(self, _e):
         """
-        Triggered by self.search_results dropdown on_change.
+        Triggered by user_search_combobox on_change.
         We attempt to start or load a chat with the selected user.
         Then we navigate to the new or existing chat screen.
         """
-        selected_user_id = self.search_results.value
-        if selected_user_id and selected_user_id != "no_results":
+        selected_user_id = self.user_search_combobox.value
+        if selected_user_id and selected_user_id not in ["no_users", ""]:
             self.logger.info(f"Starting chat with user ID {selected_user_id}")
             response = self.chat_app.api_client.start_chat(int(selected_user_id))
             if response.success:
                 # Clear out the search UI BEFORE navigating away:
-                self.search_input.value = ""
-                self.search_results.value = None
-                self.search_results.options.clear()
-                self.search_results.visible = False
+                self.user_search_combobox.value = None
+                self.user_search_combobox.options.clear()
 
                 # Instead of calling self.update(), we call the page-level update
                 # because we might be about to leave ChatListScreen
-                if self.page:
-                    self.page.update()
+                self.chat_app.page.update()
 
                 # Now that we cleaned up the search fields, let's go to the chat:
                 self.chat_app.show_chat(response.data['id'])
@@ -405,21 +408,15 @@ class ChatListScreen(ft.Column):
                 self.chat_app.show_error_dialog("Error Starting Chat", response.error)
                 self.logger.error(f"Failed to start chat with user ID {selected_user_id}: {response.error}")
         else:
-            # Reset or hide search if user chooses "no_results"
-            self.search_input.value = ""
-            self.search_results.value = None
-            self.search_results.options.clear()
-            self.search_results.visible = False
-            if self.page:
-                self.page.update()
-            self.logger.info("Reset search input and results; no user selected.")
+            # Reset search if user chooses "no_users" or empty value
+            self.user_search_combobox.value = None
+            self.user_search_combobox.options.clear()
+            self.chat_app.page.update()
+            self.logger.info("Reset search combobox; no user selected.")
 
     def close_dialog(self, dialog):
         """
         Closes a dialog and forces a page update (if still mounted).
         """
-        dialog.open = False
-        self.page.dialog = None
-        if self.page:
-            self.page.update()
+        self.chat_app.page.close(dialog)
         self.logger.info("Closed dialog.")

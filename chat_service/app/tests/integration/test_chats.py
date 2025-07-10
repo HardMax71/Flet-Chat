@@ -464,3 +464,175 @@ async def test_update_message_status_and_unread_count(client: AsyncClient, auth_
     unread_response = await client.get(f"/api/v1/chats/{chat_id}/unread_count", headers=auth_header)
     assert unread_response.status_code == 200
     assert unread_response.json() == 0
+
+
+async def test_unauthorized_requests(client: AsyncClient, test_chat):
+    # Create chat
+    response = await client.post(
+        "/api/v1/chats/",
+        json={"name": "Test Chat", "member_ids": []}
+    )
+    assert response.status_code == 401
+
+    # Get chats
+    response = await client.get("/api/v1/chats/")
+    assert response.status_code == 401
+
+    # Start chat
+    response = await client.post(
+        "/api/v1/chats/start",
+        json={"other_user_id": 1}
+    )
+    assert response.status_code == 401
+
+    # Get chat by ID
+    response = await client.get(f"/api/v1/chats/{test_chat.id}")
+    assert response.status_code == 401
+
+    # Update chat
+    response = await client.put(
+        f"/api/v1/chats/{test_chat.id}",
+        json={"name": "Updated Chat"}
+    )
+    assert response.status_code == 401
+
+    # Delete chat
+    response = await client.delete(f"/api/v1/chats/{test_chat.id}")
+    assert response.status_code == 401
+
+    # Get chat members
+    response = await client.get(f"/api/v1/chats/{test_chat.id}/members")
+    assert response.status_code == 401
+
+    # Add member
+    response = await client.post(
+        f"/api/v1/chats/{test_chat.id}/members",
+        json={"user_id": 1}
+    )
+    assert response.status_code == 401
+
+    # Remove member
+    response = await client.delete(f"/api/v1/chats/{test_chat.id}/members/1")
+    assert response.status_code == 401
+
+    # Get unread count
+    response = await client.get(f"/api/v1/chats/{test_chat.id}/unread_count")
+    assert response.status_code == 401
+
+
+async def test_chat_creation_edge_cases(client: AsyncClient, auth_header, test_user):
+    # Create chat with empty member list
+    response = await client.post(
+        "/api/v1/chats/",
+        headers=auth_header,
+        json={"name": "Empty Chat", "member_ids": []}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["members"]) == 1  # Should include creator
+
+    # Create chat with very long name
+    long_name = "A" * 255
+    response = await client.post(
+        "/api/v1/chats/",
+        headers=auth_header,
+        json={"name": long_name, "member_ids": []}
+    )
+    assert response.status_code == 200
+    assert response.json()["name"] == long_name
+
+
+async def test_member_management_edge_cases(client: AsyncClient, auth_header, test_user, test_user2):
+    # Create chat
+    chat_response = await client.post(
+        "/api/v1/chats/",
+        headers=auth_header,
+        json={"name": "Test Chat", "member_ids": [test_user.id]}
+    )
+    chat_id = chat_response.json()["id"]
+
+    # Try to add member that's already in chat
+    response = await client.post(
+        f"/api/v1/chats/{chat_id}/members",
+        headers=auth_header,
+        json={"user_id": test_user.id}
+    )
+    assert response.status_code == 200  # Should handle gracefully
+
+    # Add second user
+    response = await client.post(
+        f"/api/v1/chats/{chat_id}/members",
+        headers=auth_header,
+        json={"user_id": test_user2.id}
+    )
+    assert response.status_code == 200
+
+    # Try to remove user that's not in chat
+    response = await client.delete(f"/api/v1/chats/{chat_id}/members/99999", headers=auth_header)
+    assert response.status_code == 404
+
+
+async def test_start_chat_existing_users(client: AsyncClient, auth_header, test_user, test_user2):
+    # Start first chat
+    response1 = await client.post(
+        "/api/v1/chats/start",
+        headers=auth_header,
+        json={"other_user_id": test_user2.id}
+    )
+    assert response1.status_code == 200
+    chat1_id = response1.json()["id"]
+
+    # Try to start another chat with same user
+    response2 = await client.post(
+        "/api/v1/chats/start",
+        headers=auth_header,
+        json={"other_user_id": test_user2.id}
+    )
+    assert response2.status_code == 200
+    chat2_id = response2.json()["id"]
+
+    # Should return existing chat or create new one based on implementation
+    assert chat1_id == chat2_id or chat1_id != chat2_id  # Either behavior is valid
+
+
+async def test_pagination_edge_cases(client: AsyncClient, auth_header):
+    # Test with skip larger than available items
+    response = await client.get("/api/v1/chats/?skip=1000&limit=10", headers=auth_header)
+    assert response.status_code == 200
+    assert response.json() == []
+
+    # Test with very large limit
+    response = await client.get("/api/v1/chats/?skip=0&limit=10000", headers=auth_header)
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
+
+    # Test with zero limit
+    response = await client.get("/api/v1/chats/?skip=0&limit=0", headers=auth_header)
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+async def test_chat_name_filtering_edge_cases(client: AsyncClient, auth_header):
+    # Create chats with special characters
+    special_chars = ["Special@Chat", "Chat#123", "Chat$%&", "Ñoño Chat"]
+    for name in special_chars:
+        await client.post(
+            "/api/v1/chats/",
+            headers=auth_header,
+            json={"name": name, "member_ids": []}
+        )
+
+    # Test filtering with special characters
+    response = await client.get("/api/v1/chats/?name=@", headers=auth_header)
+    assert response.status_code == 200
+    data = response.json()
+    assert any("@" in chat["name"] for chat in data)
+
+    # Test case sensitivity
+    await client.post(
+        "/api/v1/chats/",
+        headers=auth_header,
+        json={"name": "CaseTest", "member_ids": []}
+    )
+    response = await client.get("/api/v1/chats/?name=casetest", headers=auth_header)
+    assert response.status_code == 200

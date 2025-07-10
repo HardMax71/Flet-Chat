@@ -4,9 +4,9 @@ from typing import Dict, Any, Type
 
 
 class UoWModel:
-    def __init__(self, model: Any, uow: 'UnitOfWork'):
-        self.__dict__['_model'] = model
-        self.__dict__['_uow'] = uow
+    def __init__(self, model: Any, uow: "UnitOfWork"):
+        self.__dict__["_model"] = model
+        self.__dict__["_uow"] = uow
 
     def __getattr__(self, key):
         return getattr(self._model, key)
@@ -21,20 +21,20 @@ class UoWModel:
 
 
 class UnitOfWork:
-    def __init__(self):
+    def __init__(self) -> None:
         self.dirty: Dict[int, Any] = {}
         self.new: Dict[int, Any] = {}
         self.deleted: Dict[int, Any] = {}
         self.mappers: Dict[Type, Any] = {}
 
-    def register_dirty(self, model: Any):
+    def register_dirty(self, model: Any) -> None:
         if isinstance(model, UoWModel):
             model = model._model
         model_id = id(model)
         if model_id not in self.new:
             self.dirty[model_id] = model
 
-    def register_deleted(self, model: Any):
+    def register_deleted(self, model: Any) -> None:
         if isinstance(model, UoWModel):
             model = model._model
         model_id = id(model)
@@ -49,18 +49,17 @@ class UnitOfWork:
         # Always add to deleted, regardless of previous state
         self.deleted[model_id] = model
 
-    def register_new(self, model: Any):
+    def register_new(self, model: Any) -> UoWModel:
         if isinstance(model, UoWModel):
             model = model._model
         model_id = id(model)
         self.new[model_id] = model
         return UoWModel(model, self)
 
-    async def commit(self):
+    async def commit(self) -> None:
         for model in self.new.values():
             await self.mappers[type(model)].insert(model)
         for model in self.dirty.values():
             await self.mappers[type(model)].update(model)
         for model in self.deleted.values():
             await self.mappers[type(model)].delete(model)
-
