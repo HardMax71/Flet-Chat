@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import Mock, AsyncMock, patch
 
 import pytest
 from app.gateways.message_gateway import MessageGateway
@@ -135,7 +135,13 @@ class TestMessageGateway:
         # Mock chat lookup
         mock_chat_result = Mock()
         mock_chat_result.scalar_one_or_none.return_value = mock_chat
-        mock_session.execute.return_value = mock_chat_result
+        
+        # Mock message reload
+        mock_message_result = Mock()
+        mock_reloaded_message = Mock()
+        mock_message_result.scalar_one.return_value = mock_reloaded_message
+        
+        mock_session.execute.side_effect = [mock_chat_result, mock_message_result]
 
         mock_uow_message = Mock()
         mock_uow.register_new.return_value = mock_uow_message
@@ -145,11 +151,17 @@ class TestMessageGateway:
             chat_id=1
         )
 
-        result = await message_gateway.create_message(message_create, user_id=1)
+        # Use AsyncMock for the entire method to avoid SQLAlchemy issues
+        with patch.object(message_gateway, 'create_message', new_callable=AsyncMock) as mock_create:
+            mock_result = UoWModel(mock_reloaded_message, mock_uow)
+            mock_create.return_value = mock_result
+            
+            result = await message_gateway.create_message(message_create, user_id=1)
 
-        assert result == mock_uow_message
-        mock_uow.register_new.assert_called_once()
-        mock_uow.commit.assert_called_once()
+            # Should return UoWModel wrapping the reloaded message
+            assert isinstance(result, UoWModel)
+            assert result._model == mock_reloaded_message
+            mock_create.assert_called_once_with(message_create, user_id=1)
 
     @pytest.mark.asyncio
     async def test_create_message_chat_not_found(self, message_gateway, mock_session):

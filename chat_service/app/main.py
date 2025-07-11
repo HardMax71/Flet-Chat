@@ -49,6 +49,10 @@ class Application:
     async def lifespan(self, app: FastAPI):
         await self.database.connect()
         await self.redis_client.connect()
+
+        # Initialize test data for development/testing
+        await self.database.init_test_data(self.security_service)
+
         yield
         await self.database.disconnect()
         await self.redis_client.disconnect()
@@ -105,9 +109,10 @@ class Application:
 
         @app.exception_handler(Exception)
         async def global_exception_handler(request: Request, exc: Exception):
+            self.logger.error(f"Unhandled exception: {exc}")
             return JSONResponse(
                 status_code=500,
-                content={"message": f"An unexpected error occurred: {str(exc)}"},
+                content={"message": "Internal server error"},
             )
 
         return app

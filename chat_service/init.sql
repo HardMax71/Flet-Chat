@@ -3,7 +3,7 @@ DO
 $$
 BEGIN
    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'chatuser') THEN
-      CREATE USER chatuser WITH PASSWORD 'password';
+      CREATE USER chatuser WITH PASSWORD '${POSTGRES_PASSWORD}';
    END IF;
 END
 $$;

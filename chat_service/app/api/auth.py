@@ -143,7 +143,7 @@ async def refresh_token(
     return new_token
 
 
-@router.post("/logout")
+@router.post("/logout", status_code=204)
 async def logout(
     token: str = Depends(oauth2_scheme),
     token_interactor: TokenInteractor = Depends(get_token_interactor),
@@ -153,4 +153,3 @@ async def logout(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
         )
-    return {"message": "Successfully logged out"}

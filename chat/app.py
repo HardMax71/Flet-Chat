@@ -1,5 +1,7 @@
 import json
+import logging
 import os
+from typing import Dict, Any, Union
 
 import flet as ft
 
@@ -8,98 +10,109 @@ from .chat_list_screen import ChatListScreen
 from .chat_screen import ChatScreen
 from .login_screen import LoginScreen
 from .register_screen import RegisterScreen
+from .state_manager import StateManager, AppState, StateEvent
 from .user_profile_screen import UserProfileScreen
 
 
 class ChatApp:
-    def __init__(self, page: ft.Page):
-        self.page = page
+    def __init__(self, page: ft.Page) -> None:
+        self.page: ft.Page = page
         self.page.title = "Chat App"
         self.page.theme_mode = ft.ThemeMode.LIGHT
 
-        api_part: str = os.environ.get("API_V1_STR", "/api/v1")
-        self.api_client = ApiClient("http://localhost:8000/" + api_part)
+        self.logger: logging.Logger = logging.getLogger("ChatApp")
+        self.logger.setLevel(logging.INFO)
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter(
+            "[%(asctime)s] %(levelname)s:%(name)s: %(message)s"
+        )
+        handler.setFormatter(formatter)
+        if not self.logger.handlers:
+            self.logger.addHandler(handler)
 
-        self.container = ft.Container(expand=True)
+        api_part: str = os.environ.get("API_V1_STR", "/api/v1")
+        self.api_client: ApiClient = ApiClient("http://localhost:8000/" + api_part)
+
+        self.state_manager: StateManager = StateManager(self.api_client)
+        self.app_state: AppState = AppState()
+        self.app_state.subscribe(StateEvent.USER_LOGGED_IN, self._on_user_logged_in)
+        self.app_state.subscribe(StateEvent.USER_LOGGED_OUT, self._on_user_logged_out)
+
+        self.container: ft.Container = ft.Container(expand=True)
         self.page.add(self.container)
 
+        self.state_manager.initialize()
+        if self.app_state.is_authenticated:
+            self.logger.info("User already authenticated, showing chat list")
+            self.show_chat_list()
+        else:
+            self.show_login()
+
+    def _on_user_logged_in(self, data: Dict[str, Any]) -> None:
+        self.logger.info("User logged in, updating UI")
+        # UI will be updated by screens subscribing to state changes
+
+    def _on_user_logged_out(self, data: Dict[str, Any]) -> None:
+        self.logger.info("User logged out, showing login screen")
         self.show_login()
 
-    def switch_screen(self, screen):
+    def switch_screen(self, screen: ft.Control) -> None:
         self.container.content = screen
         self.page.update()
 
-    def show_login(self):
+    def show_login(self) -> None:
+        self.state_manager.set_current_chat(None)
         screen = LoginScreen(self)
         screen.build()
         self.switch_screen(screen)
 
-    def show_register(self):
+    def show_register(self) -> None:
         screen = RegisterScreen(self)
         screen.build()
         self.switch_screen(screen)
 
-    def show_chat_list(self):
+    def show_chat_list(self) -> None:
+        self.state_manager.set_current_chat(None)
         screen = ChatListScreen(self)
         screen.build()
         self.switch_screen(screen)
 
-    def show_chat(self, chat_id):
+    def show_chat(self, chat_id: int) -> None:
+        self.state_manager.set_current_chat(chat_id)
         screen = ChatScreen(self, chat_id)
         screen.build()
         self.switch_screen(screen)
 
-    def show_user_profile(self):
+    def show_user_profile(self) -> None:
         screen = UserProfileScreen(self)
         screen.build()
         self.switch_screen(screen)
 
-    # all funcs below are for processing str or dict with error message(s) inside
-    def show_error_dialog(self, title, error):
-        description = self._extract_error_message(error)
-        self._display_error_dialog(title, description)
+    def handle_successful_login(self, user_data: Dict[str, Any]) -> None:
+        self.logger.info(
+            f"Handling successful login for user: {user_data.get('username', 'Unknown')}"
+        )
+        self.state_manager.login_user(user_data)
+        self.show_chat_list()
 
-    def _extract_error_message(self, error) -> str:
-        # Attempt to parse error if it's a string in JSON format
-        if isinstance(error, str):
-            error = self._parse_json_string(error)
+    def handle_logout(self) -> None:
+        self.logger.info("Handling user logout")
+        self.state_manager.logout_user()
+        # UI will be updated by _on_user_logged_out observer
 
-        # Extract error message
-        if isinstance(error, dict) and "detail" in error:
-            return self._format_error_details(error["detail"])
+    def refresh_chats(self) -> bool:
+        return self.state_manager.refresh_chats()
 
-        return str(error)
+    def show_error_dialog(self, title: str, error: Any) -> None:
+        """Display an error dialog, converting any error to string."""
 
-    def _parse_json_string(self, error_str: str) -> dict | str:
-        try:
-            return json.loads(error_str)
-        except json.JSONDecodeError:
-            return error_str
-
-    def _format_error_details(self, detail: str | list) -> str:
-        if isinstance(detail, list):
-            messages = []
-            for item in detail:
-                field = self._get_field_name(item)
-                message = item.get("msg", str(item))
-                messages.append(f"- {field}: {message}")
-            return "\n".join(messages)
-        return detail
-
-    def _get_field_name(self, item: dict) -> str:
-        # Extract the field name, ignoring the "body" prefix if present
-        if "loc" in item and len(item["loc"]) > 1:
-            return item["loc"][-1]  # Take the last part of the location list
-        return item.get("loc", ["Unknown field"])[-1]
-
-    def _display_error_dialog(self, title, description):
-        def close_dlg(e):
+        def close_dlg(e: ft.ControlEvent) -> None:
             self.page.close(dlg)
 
         dlg = ft.AlertDialog(
             modal=True,
             title=ft.Text(title),
-            content=ft.Text(description),
+            content=ft.Text(str(error)),
             actions=[ft.TextButton("OK", on_click=close_dlg)],
             actions_alignment=ft.MainAxisAlignment.END,
             on_dismiss=close_dlg,

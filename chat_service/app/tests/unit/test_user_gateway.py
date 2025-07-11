@@ -274,14 +274,21 @@ class TestUserGateway:
 
     @pytest.mark.asyncio
     async def test_delete_user_found(self, user_gateway, mock_session, mock_user, mock_uow):
-        mock_result = Mock()
-        mock_result.scalar_one_or_none.return_value = mock_user
-        mock_session.execute.return_value = mock_result
+        # Mock the user lookup result
+        mock_user_result = Mock()
+        mock_user_result.scalar_one_or_none.return_value = mock_user
+        
+        # Mock the token lookup result
+        mock_token_result = Mock()
+        mock_token_result.scalars.return_value.all.return_value = []  # No tokens
+        
+        mock_session.execute.side_effect = [mock_user_result, mock_token_result]
 
         result = await user_gateway.delete_user(1)
 
         assert result is not None
         assert isinstance(result, UoWModel)
+        assert result._model == mock_user
         mock_uow.register_deleted.assert_called_once_with(mock_user)
         mock_uow.commit.assert_called_once()
 

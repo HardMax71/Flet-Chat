@@ -88,7 +88,6 @@ async def delete_chat(
     deleted = await chat_interactor.delete_chat(chat_id, current_user.id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Chat not found")
-    return {"message": "Chat deleted successfully"}
 
 
 @router.get("/{chat_id}/members", response_model=List[schemas.User])
@@ -139,8 +138,6 @@ async def remove_chat_member(
     chat = await chat_interactor.remove_member(chat_id, user_id, current_user.id)
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
-
-    return {"message": "Member removed from chat successfully"}
 
 
 @router.get("/{chat_id}/unread_count", response_model=int)

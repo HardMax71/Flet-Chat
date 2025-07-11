@@ -221,8 +221,7 @@ async def test_refresh_token_expiration(client: AsyncClient, test_user, app_conf
 
 async def test_logout(client: AsyncClient, auth_header):
     response = await client.post("/api/v1/auth/logout", headers=auth_header)
-    assert response.status_code == 200
-    assert response.json() == {"message": "Successfully logged out"}
+    assert response.status_code == 204
 
     await asyncio.sleep(0.1)
 

@@ -21,6 +21,7 @@ class MessageGateway(IMessageGateway):
     async def get_message(self, message_id: int, user_id: int) -> Optional[UoWModel]:
         stmt = (
             select(models.Message)
+            .options(selectinload(models.Message.statuses))
             .join(models.Chat)
             .filter(
                 models.Message.id == message_id, models.Chat.members.any(id=user_id)
@@ -40,6 +41,7 @@ class MessageGateway(IMessageGateway):
     ) -> List[UoWModel]:
         stmt = (
             select(models.Message)
+            .options(selectinload(models.Message.statuses))
             .join(models.Chat)
             .filter(
                 models.Message.chat_id == chat_id, models.Chat.members.any(id=user_id)
@@ -55,8 +57,12 @@ class MessageGateway(IMessageGateway):
     async def create_message(
         self, message: schemas.MessageCreate, user_id: int
     ) -> UoWModel:
-        chat_stmt = select(models.Chat).filter(
-            models.Chat.id == message.chat_id, models.Chat.members.any(id=user_id)
+        chat_stmt = (
+            select(models.Chat)
+            .options(selectinload(models.Chat.members))
+            .filter(
+                models.Chat.id == message.chat_id, models.Chat.members.any(id=user_id)
+            )
         )
         chat_result = await self.session.execute(chat_stmt)
         chat = chat_result.scalar_one_or_none()
@@ -84,13 +90,23 @@ class MessageGateway(IMessageGateway):
 
         uow_message = self.uow.register_new(db_message)
         await self.uow.commit()
-        return uow_message
+
+        # Reload with proper eager loading for return
+        stmt = (
+            select(models.Message)
+            .options(selectinload(models.Message.statuses))
+            .filter(models.Message.id == db_message.id)
+        )
+        result = await self.session.execute(stmt)
+        reloaded_message = result.scalar_one()
+        return UoWModel(reloaded_message, self.uow)
 
     async def update_message(
         self, message_id: int, message_update: schemas.MessageUpdate, user_id: int
     ) -> Optional[UoWModel]:
         stmt = (
             select(models.Message)
+            .options(selectinload(models.Message.statuses))
             .join(models.Chat)
             .filter(
                 models.Message.id == message_id,
@@ -113,6 +129,7 @@ class MessageGateway(IMessageGateway):
     async def delete_message(self, message_id: int, user_id: int) -> Optional[UoWModel]:
         stmt = (
             select(models.Message)
+            .options(selectinload(models.Message.statuses))
             .join(models.Chat)
             .filter(
                 models.Message.id == message_id,
@@ -148,13 +165,15 @@ class MessageGateway(IMessageGateway):
             if status:
                 status.is_read = status_update.is_read
                 if status.is_read and not status.read_at:
-                    status.read_at = datetime.utcnow()
+                    status.read_at = datetime.now(timezone.utc)
             else:
                 new_status = models.MessageStatus(
                     message_id=message_id,
                     user_id=user_id,
                     is_read=status_update.is_read,
-                    read_at=datetime.utcnow() if status_update.is_read else None,
+                    read_at=datetime.now(timezone.utc)
+                    if status_update.is_read
+                    else None,
                 )
                 message.statuses.append(new_status)
             uow_message = UoWModel(message, self.uow)

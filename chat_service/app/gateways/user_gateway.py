@@ -111,6 +111,13 @@ class UserGateway(IUserGateway):
         user = result.scalar_one_or_none()
 
         if user:
+            # Delete user's tokens first to avoid foreign key issues
+            token_stmt = select(models.Token).filter(models.Token.user_id == user_id)
+            token_result = await self.session.execute(token_stmt)
+            tokens = token_result.scalars().all()
+            for token in tokens:
+                self.uow.register_deleted(token)
+
             uow_user = UoWModel(user, self.uow)
             self.uow.register_deleted(user)
             await self.uow.commit()

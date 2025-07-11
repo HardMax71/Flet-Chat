@@ -110,7 +110,7 @@ async def update_message(
     return updated_message
 
 
-@router.delete("/{message_id}", status_code=200, response_model=schemas.Message)
+@router.delete("/{message_id}", status_code=204)
 async def delete_message(
     message_id: int,
     message_interactor: MessageInteractor = Depends(get_message_interactor),
@@ -138,8 +138,6 @@ async def delete_message(
             is_deleted=deleted_message.is_deleted,
         )
     )
-
-    return deleted_message
 
 
 @router.put("/{message_id}/status", response_model=schemas.Message)

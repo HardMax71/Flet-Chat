@@ -1,6 +1,6 @@
 # app/domain/entities.py
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 
 
@@ -10,7 +10,7 @@ class User:
     username: str
     email: str
     hashed_password: str
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     is_active: bool = True
     chats: List["Chat"] = field(default_factory=list)
     messages: List["Message"] = field(default_factory=list)
@@ -22,7 +22,7 @@ class User:
 class Chat:
     id: int
     name: str
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     members: List[User] = field(default_factory=list)
     messages: List["Message"] = field(default_factory=list)
 
@@ -35,7 +35,7 @@ class Message:
     user_id: int
     chat: Optional[Chat] = None
     user: Optional[User] = None
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = None
     is_deleted: bool = False
     statuses: List["MessageStatus"] = field(default_factory=list)

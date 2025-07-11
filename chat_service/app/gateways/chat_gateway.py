@@ -18,8 +18,10 @@ class ChatGateway(IChatGateway):
         uow.mappers[models.Chat] = ChatMapper(session)
 
     async def get_chat(self, chat_id: int, user_id: int) -> Optional[UoWModel]:
-        stmt = select(models.Chat).filter(
-            models.Chat.id == chat_id, models.Chat.members.any(id=user_id)
+        stmt = (
+            select(models.Chat)
+            .options(selectinload(models.Chat.members))
+            .filter(models.Chat.id == chat_id, models.Chat.members.any(id=user_id))
         )
         result = await self.session.execute(stmt)
         chat = result.scalar_one_or_none()
@@ -28,7 +30,11 @@ class ChatGateway(IChatGateway):
     async def get_all(
         self, user_id: int, skip: int = 0, limit: int = 100, name: Optional[str] = None
     ) -> List[UoWModel]:
-        stmt = select(models.Chat).filter(models.Chat.members.any(id=user_id))
+        stmt = (
+            select(models.Chat)
+            .options(selectinload(models.Chat.members))
+            .filter(models.Chat.members.any(id=user_id))
+        )
         if name:
             stmt = stmt.filter(models.Chat.name.ilike(f"%{name}%"))
         stmt = stmt.offset(skip).limit(limit)
@@ -46,7 +52,16 @@ class ChatGateway(IChatGateway):
         db_chat.members = members
         uow_chat = self.uow.register_new(db_chat)
         await self.uow.commit()
-        return uow_chat
+
+        # Reload with proper eager loading for return
+        chat_stmt = (
+            select(models.Chat)
+            .options(selectinload(models.Chat.members))
+            .filter(models.Chat.id == db_chat.id)
+        )
+        result = await self.session.execute(chat_stmt)
+        reloaded_chat = result.scalar_one()
+        return UoWModel(reloaded_chat, self.uow)
 
     async def add_member(
         self, chat_id: int, user_id: int, current_user_id: int
@@ -54,6 +69,12 @@ class ChatGateway(IChatGateway):
         chat = await self.get_chat(chat_id, current_user_id)
         if not chat:
             return None
+
+        # Check if user is already a member
+        existing_member_ids = [member.id for member in chat._model.members]
+        if user_id in existing_member_ids:
+            return chat  # User is already a member
+
         stmt = select(models.User).filter(models.User.id == user_id)
         result = await self.session.execute(stmt)
         user = result.scalar_one_or_none()
@@ -96,7 +117,16 @@ class ChatGateway(IChatGateway):
         db_chat.members = members
         uow_chat = self.uow.register_new(db_chat)
         await self.uow.commit()
-        return uow_chat
+
+        # Reload with proper eager loading for return
+        chat_reload_stmt = (
+            select(models.Chat)
+            .options(selectinload(models.Chat.members))
+            .filter(models.Chat.id == db_chat.id)
+        )
+        result = await self.session.execute(chat_reload_stmt)
+        reloaded_chat = result.scalar_one()
+        return UoWModel(reloaded_chat, self.uow)
 
     async def get_user_ids_in_chat(self, chat_id: int) -> List[int]:
         stmt = (

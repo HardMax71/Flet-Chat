@@ -10,7 +10,7 @@ services:
       - ./chat_service/init.sql:/docker-entrypoint-initdb.d/init.sql
     environment:
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${DB_NAME}
     ports:
       - "${DB_PORT}:5432"
@@ -32,7 +32,7 @@ services:
     ports:
       - "${APP_PORT}:${APP_PORT}"
     environment:
-      - DATABASE_URL=postgresql+asyncpg://postgres:password@db:${DB_PORT}/${DB_NAME}
+      - DATABASE_URL=postgresql+asyncpg://postgres:${POSTGRES_PASSWORD}@db:${DB_PORT}/${DB_NAME}
       - SECRET_KEY=${SECRET_KEY}
       - REFRESH_SECRET_KEY=${REFRESH_SECRET_KEY}
       - REDIS_HOST=${REDIS_HOST}

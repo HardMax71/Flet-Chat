@@ -74,10 +74,16 @@ async def test_delete_message(client: AsyncClient, auth_header, test_chat):
 
     # Delete the message
     delete_response = await client.delete(f"/api/v1/messages/{message_id}", headers=auth_header)
-    assert delete_response.status_code == 200
-    deleted_data = delete_response.json()
-    assert deleted_data["is_deleted"] == True
-    assert deleted_data["content"] == "<This message has been deleted>"
+    assert delete_response.status_code == 204
+    
+    # Verify deletion by fetching messages and checking the content
+    messages_response = await client.get(f"/api/v1/messages/{test_chat.id}", headers=auth_header)
+    assert messages_response.status_code == 200
+    messages = messages_response.json()
+    deleted_message = next((msg for msg in messages if msg["id"] == message_id), None)
+    assert deleted_message is not None
+    assert deleted_message["is_deleted"] == True
+    assert deleted_message["content"] == "<This message has been deleted>"
 
 
 async def test_update_message_status(client: AsyncClient, auth_header, test_chat):

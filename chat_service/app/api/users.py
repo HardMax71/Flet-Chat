@@ -46,7 +46,6 @@ async def delete_user(
     deleted = await user_interactor.delete_user(current_user.id)
     if not deleted:
         raise HTTPException(status_code=404, detail="User not found")
-    return {"message": "User deleted successfully"}
 
 
 @router.get("/search", response_model=List[schemas.UserBasic])
