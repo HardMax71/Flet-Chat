@@ -1,7 +1,6 @@
-import json
 import logging
 import os
-from typing import Dict, Any, Union
+from typing import Any
 
 import flet as ft
 
@@ -10,7 +9,7 @@ from .chat_list_screen import ChatListScreen
 from .chat_screen import ChatScreen
 from .login_screen import LoginScreen
 from .register_screen import RegisterScreen
-from .state_manager import StateManager, AppState, StateEvent
+from .state_manager import AppState, StateEvent, StateManager
 from .user_profile_screen import UserProfileScreen
 
 
@@ -48,11 +47,11 @@ class ChatApp:
         else:
             self.show_login()
 
-    def _on_user_logged_in(self, data: Dict[str, Any]) -> None:
+    def _on_user_logged_in(self, data: dict[str, Any]) -> None:
         self.logger.info("User logged in, updating UI")
         # UI will be updated by screens subscribing to state changes
 
-    def _on_user_logged_out(self, data: Dict[str, Any]) -> None:
+    def _on_user_logged_out(self, data: dict[str, Any]) -> None:
         self.logger.info("User logged out, showing login screen")
         self.show_login()
 
@@ -88,7 +87,7 @@ class ChatApp:
         screen.build()
         self.switch_screen(screen)
 
-    def handle_successful_login(self, user_data: Dict[str, Any]) -> None:
+    def handle_successful_login(self, user_data: dict[str, Any]) -> None:
         self.logger.info(
             f"Handling successful login for user: {user_data.get('username', 'Unknown')}"
         )
@@ -106,7 +105,7 @@ class ChatApp:
     def show_error_dialog(self, title: str, error: Any) -> None:
         """Display an error dialog, converting any error to string."""
 
-        def close_dlg(e: ft.ControlEvent) -> None:
+        def close_dlg(_: ft.ControlEvent) -> None:
             self.page.close(dlg)
 
         dlg = ft.AlertDialog(

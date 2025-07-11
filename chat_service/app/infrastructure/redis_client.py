@@ -1,14 +1,14 @@
 # app/infrastructure/redis_client.py
-import redis.asyncio as redis
 import logging
-from typing import Optional
+
+import redis.asyncio as redis
 
 
 class RedisClient:
     def __init__(self, host: str, port: int, logger: logging.Logger):
         self.host = host
         self.port = port
-        self.client: Optional[redis.Redis] = None
+        self.client: redis.Redis | None = None
         self.logger = logger
 
     async def connect(self):
@@ -24,7 +24,7 @@ class RedisClient:
                 f"Successfully connected to Redis at {self.host}:{self.port}"
             )
         except redis.ConnectionError as e:
-            self.logger.error(f"Failed to connect to Redis: {str(e)}")
+            self.logger.error(f"Failed to connect to Redis: {e!s}")
             self.logger.error(f"Redis host: {self.host}, Redis port: {self.port}")
             raise e
 

@@ -1,15 +1,14 @@
 # app/infrastructure/message_gateway.py
-from datetime import datetime, timezone
-from typing import List, Optional
+from datetime import UTC, datetime
 
-from app.gateways.interfaces import IMessageGateway
-from app.infrastructure import models
-from app.infrastructure import schemas
-from app.infrastructure.data_mappers import MessageMapper
-from app.infrastructure.uow import UnitOfWork, UoWModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+
+from app.gateways.interfaces import IMessageGateway
+from app.infrastructure import models, schemas
+from app.infrastructure.data_mappers import MessageMapper
+from app.infrastructure.uow import UnitOfWork, UoWModel
 
 
 class MessageGateway(IMessageGateway):
@@ -18,7 +17,7 @@ class MessageGateway(IMessageGateway):
         self.uow = uow
         uow.mappers[models.Message] = MessageMapper(session)
 
-    async def get_message(self, message_id: int, user_id: int) -> Optional[UoWModel]:
+    async def get_message(self, message_id: int, user_id: int) -> UoWModel | None:
         stmt = (
             select(models.Message)
             .options(selectinload(models.Message.statuses))
@@ -37,8 +36,8 @@ class MessageGateway(IMessageGateway):
         user_id: int,
         skip: int = 0,
         limit: int = 100,
-        content: Optional[str] = None,
-    ) -> List[UoWModel]:
+        content: str | None = None,
+    ) -> list[UoWModel]:
         stmt = (
             select(models.Message)
             .options(selectinload(models.Message.statuses))
@@ -84,11 +83,11 @@ class MessageGateway(IMessageGateway):
                 message_id=0,  # Will be set after commit
                 user_id=member.id,
                 is_read=is_author,
-                read_at=datetime.now(timezone.utc) if is_author else None,
+                read_at=datetime.now(UTC) if is_author else None,
             )
             db_message.statuses.append(message_status)
 
-        uow_message = self.uow.register_new(db_message)
+        self.uow.register_new(db_message)
         await self.uow.commit()
 
         # Reload with proper eager loading for return
@@ -103,7 +102,7 @@ class MessageGateway(IMessageGateway):
 
     async def update_message(
         self, message_id: int, message_update: schemas.MessageUpdate, user_id: int
-    ) -> Optional[UoWModel]:
+    ) -> UoWModel | None:
         stmt = (
             select(models.Message)
             .options(selectinload(models.Message.statuses))
@@ -117,16 +116,15 @@ class MessageGateway(IMessageGateway):
         result = await self.session.execute(stmt)
         message = result.scalar_one_or_none()
         if message:
-            # Use setattr to properly update mapped columns
-            setattr(message, "content", message_update.content)
-            setattr(message, "updated_at", datetime.now(timezone.utc))
+            message.content = message_update.content
+            message.updated_at = datetime.now(UTC)
             uow_message = UoWModel(message, self.uow)
             self.uow.register_dirty(message)
             await self.uow.commit()
             return uow_message
         return None
 
-    async def delete_message(self, message_id: int, user_id: int) -> Optional[UoWModel]:
+    async def delete_message(self, message_id: int, user_id: int) -> UoWModel | None:
         stmt = (
             select(models.Message)
             .options(selectinload(models.Message.statuses))
@@ -142,7 +140,7 @@ class MessageGateway(IMessageGateway):
         if message:
             message.is_deleted = True
             message.content = "<This message has been deleted>"
-            message.updated_at = datetime.now(timezone.utc)
+            message.updated_at = datetime.now(UTC)
             uow_message = UoWModel(message, self.uow)
             self.uow.register_dirty(message)
             await self.uow.commit()
@@ -151,7 +149,7 @@ class MessageGateway(IMessageGateway):
 
     async def update_message_status(
         self, message_id: int, user_id: int, status_update: schemas.MessageStatusUpdate
-    ) -> Optional[UoWModel]:
+    ) -> UoWModel | None:
         stmt = (
             select(models.Message)
             .options(selectinload(models.Message.statuses))
@@ -165,15 +163,13 @@ class MessageGateway(IMessageGateway):
             if status:
                 status.is_read = status_update.is_read
                 if status.is_read and not status.read_at:
-                    status.read_at = datetime.now(timezone.utc)
+                    status.read_at = datetime.now(UTC)
             else:
                 new_status = models.MessageStatus(
                     message_id=message_id,
                     user_id=user_id,
                     is_read=status_update.is_read,
-                    read_at=datetime.now(timezone.utc)
-                    if status_update.is_read
-                    else None,
+                    read_at=datetime.now(UTC) if status_update.is_read else None,
                 )
                 message.statuses.append(new_status)
             uow_message = UoWModel(message, self.uow)

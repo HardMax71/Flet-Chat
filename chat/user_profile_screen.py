@@ -147,7 +147,7 @@ class UserProfileScreen(ft.Column):
         """
         self.logger.info("Initiating account deletion process")
 
-        def confirm_delete(e):
+        def confirm_delete(_):
             self.logger.info("Account deletion confirmed")
             response = self.chat_app.api_client.delete_user()
             if response.success:

@@ -1,6 +1,5 @@
 # app/gateways/interfaces.py
 from abc import ABC, abstractmethod
-from typing import List, Optional
 
 from app.infrastructure import schemas
 from app.infrastructure.security import SecurityService
@@ -9,13 +8,13 @@ from app.infrastructure.uow import UoWModel
 
 class IChatGateway(ABC):
     @abstractmethod
-    async def get_chat(self, chat_id: int, user_id: int) -> Optional[UoWModel]:
+    async def get_chat(self, chat_id: int, user_id: int) -> UoWModel | None:
         pass
 
     @abstractmethod
     async def get_all(
-        self, user_id: int, skip: int = 0, limit: int = 100, name: Optional[str] = None
-    ) -> List[UoWModel]:
+        self, user_id: int, skip: int = 0, limit: int = 100, name: str | None = None
+    ) -> list[UoWModel]:
         pass
 
     @abstractmethod
@@ -25,7 +24,7 @@ class IChatGateway(ABC):
     @abstractmethod
     async def add_member(
         self, chat_id: int, user_id: int, current_user_id: int
-    ) -> Optional[UoWModel]:
+    ) -> UoWModel | None:
         pass
 
     @abstractmethod
@@ -41,11 +40,11 @@ class IChatGateway(ABC):
     @abstractmethod
     async def start_chat(
         self, current_user_id: int, other_user_id: int
-    ) -> Optional[UoWModel]:
+    ) -> UoWModel | None:
         pass
 
     @abstractmethod
-    async def get_user_ids_in_chat(self, chat_id: int) -> List[int]:
+    async def get_user_ids_in_chat(self, chat_id: int) -> list[int]:
         pass
 
     @abstractmethod
@@ -61,7 +60,7 @@ class IChatGateway(ABC):
 
 class IMessageGateway(ABC):
     @abstractmethod
-    async def get_message(self, message_id: int, user_id: int) -> Optional[UoWModel]:
+    async def get_message(self, message_id: int, user_id: int) -> UoWModel | None:
         pass
 
     @abstractmethod
@@ -71,8 +70,8 @@ class IMessageGateway(ABC):
         user_id: int,
         skip: int = 0,
         limit: int = 100,
-        content: Optional[str] = None,
-    ) -> List[UoWModel]:
+        content: str | None = None,
+    ) -> list[UoWModel]:
         pass
 
     @abstractmethod
@@ -84,17 +83,17 @@ class IMessageGateway(ABC):
     @abstractmethod
     async def update_message(
         self, message_id: int, message_update: schemas.MessageUpdate, user_id: int
-    ) -> Optional[UoWModel]:
+    ) -> UoWModel | None:
         pass
 
     @abstractmethod
-    async def delete_message(self, message_id: int, user_id: int) -> Optional[UoWModel]:
+    async def delete_message(self, message_id: int, user_id: int) -> UoWModel | None:
         pass
 
     @abstractmethod
     async def update_message_status(
         self, message_id: int, user_id: int, status_update: schemas.MessageStatusUpdate
-    ) -> Optional[UoWModel]:
+    ) -> UoWModel | None:
         pass
 
 
@@ -104,15 +103,15 @@ class ITokenGateway(ABC):
         pass
 
     @abstractmethod
-    async def get_by_user_id(self, user_id: int) -> Optional[UoWModel]:
+    async def get_by_user_id(self, user_id: int) -> UoWModel | None:
         pass
 
     @abstractmethod
-    async def get_by_access_token(self, access_token: str) -> Optional[UoWModel]:
+    async def get_by_access_token(self, access_token: str) -> UoWModel | None:
         pass
 
     @abstractmethod
-    async def get_by_refresh_token(self, refresh_token: str) -> Optional[UoWModel]:
+    async def get_by_refresh_token(self, refresh_token: str) -> UoWModel | None:
         pass
 
     @abstractmethod
@@ -130,21 +129,21 @@ class ITokenGateway(ABC):
 
 class IUserGateway(ABC):
     @abstractmethod
-    async def get_user(self, user_id: int) -> Optional[UoWModel]:
+    async def get_user(self, user_id: int) -> UoWModel | None:
         pass
 
     @abstractmethod
-    async def get_by_email(self, email: str) -> Optional[UoWModel]:
+    async def get_by_email(self, email: str) -> UoWModel | None:
         pass
 
     @abstractmethod
-    async def get_by_username(self, username: str) -> Optional[UoWModel]:
+    async def get_by_username(self, username: str) -> UoWModel | None:
         pass
 
     @abstractmethod
     async def get_all(
-        self, skip: int = 0, limit: int = 100, username: Optional[str] = None
-    ) -> List[UoWModel]:
+        self, skip: int = 0, limit: int = 100, username: str | None = None
+    ) -> list[UoWModel]:
         pass
 
     @abstractmethod
@@ -159,11 +158,11 @@ class IUserGateway(ABC):
     @abstractmethod
     async def create_user(
         self, user: schemas.UserCreate, security_service: SecurityService
-    ) -> Optional[UoWModel]:
+    ) -> UoWModel | None:
         pass
 
     @abstractmethod
-    async def search_users(self, query: str, current_user_id: int) -> List[UoWModel]:
+    async def search_users(self, query: str, current_user_id: int) -> list[UoWModel]:
         pass
 
     @abstractmethod
@@ -179,5 +178,5 @@ class IUserGateway(ABC):
         pass
 
     @abstractmethod
-    async def delete_user(self, user_id: int) -> Optional[UoWModel]:
+    async def delete_user(self, user_id: int) -> UoWModel | None:
         pass

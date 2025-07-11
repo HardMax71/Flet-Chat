@@ -1,5 +1,5 @@
 # app/interactors/message_interactor.py
-from typing import List, Optional
+
 
 from app.gateways.interfaces import IMessageGateway
 from app.infrastructure import schemas
@@ -11,7 +11,7 @@ class MessageInteractor:
 
     async def get_message(
         self, message_id: int, user_id: int
-    ) -> Optional[schemas.Message]:
+    ) -> schemas.Message | None:
         message = await self.message_gateway.get_message(message_id, user_id)
         return schemas.Message.model_validate(message) if message else None
 
@@ -21,8 +21,8 @@ class MessageInteractor:
         user_id: int,
         skip: int = 0,
         limit: int = 100,
-        content: Optional[str] = None,
-    ) -> List[schemas.Message]:
+        content: str | None = None,
+    ) -> list[schemas.Message]:
         messages = await self.message_gateway.get_all(
             chat_id, user_id, skip, limit, content
         )
@@ -30,7 +30,7 @@ class MessageInteractor:
 
     async def update_message_status(
         self, message_id: int, user_id: int, status_update: schemas.MessageStatusUpdate
-    ) -> Optional[schemas.Message]:
+    ) -> schemas.Message | None:
         updated_message = await self.message_gateway.update_message_status(
             message_id, user_id, status_update
         )
@@ -46,7 +46,7 @@ class MessageInteractor:
 
     async def update_message(
         self, message_id: int, message_update: schemas.MessageUpdate, user_id: int
-    ) -> Optional[schemas.Message]:
+    ) -> schemas.Message | None:
         updated_message = await self.message_gateway.update_message(
             message_id, message_update, user_id
         )
@@ -56,7 +56,7 @@ class MessageInteractor:
 
     async def delete_message(
         self, message_id: int, user_id: int
-    ) -> Optional[schemas.Message]:
+    ) -> schemas.Message | None:
         deleted_message = await self.message_gateway.delete_message(message_id, user_id)
         return (
             schemas.Message.model_validate(deleted_message) if deleted_message else None

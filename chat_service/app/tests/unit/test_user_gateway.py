@@ -1,11 +1,12 @@
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.gateways.user_gateway import UserGateway
 from app.infrastructure import models, schemas
 from app.infrastructure.security import SecurityService
 from app.infrastructure.uow import UnitOfWork, UoWModel
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @pytest.fixture
@@ -58,7 +59,9 @@ def mock_uow_user(mock_user, mock_uow):
 
 class TestUserGateway:
     @pytest.mark.asyncio
-    async def test_get_user_found(self, user_gateway, mock_session, mock_user, mock_uow):
+    async def test_get_user_found(
+        self, user_gateway, mock_session, mock_user, mock_uow
+    ):
         mock_result = Mock()
         mock_result.scalar_one_or_none.return_value = mock_user
         mock_session.execute.return_value = mock_result
@@ -94,7 +97,9 @@ class TestUserGateway:
         mock_session.execute.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_get_by_email_case_insensitive(self, user_gateway, mock_session, mock_user):
+    async def test_get_by_email_case_insensitive(
+        self, user_gateway, mock_session, mock_user
+    ):
         mock_result = Mock()
         mock_result.scalar_one_or_none.return_value = mock_user
         mock_session.execute.return_value = mock_result
@@ -117,7 +122,9 @@ class TestUserGateway:
         mock_session.execute.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_get_by_username_case_insensitive(self, user_gateway, mock_session, mock_user):
+    async def test_get_by_username_case_insensitive(
+        self, user_gateway, mock_session, mock_user
+    ):
         mock_result = Mock()
         mock_result.scalar_one_or_none.return_value = mock_user
         mock_session.execute.return_value = mock_result
@@ -140,7 +147,9 @@ class TestUserGateway:
         mock_session.execute.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_get_all_with_username_filter(self, user_gateway, mock_session, mock_user):
+    async def test_get_all_with_username_filter(
+        self, user_gateway, mock_session, mock_user
+    ):
         mock_result = Mock()
         mock_result.scalars.return_value.all.return_value = [mock_user]
         mock_session.execute.return_value = mock_result
@@ -162,7 +171,9 @@ class TestUserGateway:
         mock_session.execute.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_create_user_success(self, user_gateway, mock_security_service, mock_uow):
+    async def test_create_user_success(
+        self, user_gateway, mock_security_service, mock_uow
+    ):
         user_gateway.get_by_email = AsyncMock(return_value=None)
         user_gateway.get_by_username = AsyncMock(return_value=None)
 
@@ -170,9 +181,7 @@ class TestUserGateway:
         mock_uow.register_new.return_value = mock_uow_user
 
         user_create = schemas.UserCreate(
-            username="newuser",
-            email="new@example.com",
-            password="password123"
+            username="newuser", email="new@example.com", password="password123"
         )
 
         result = await user_gateway.create_user(user_create, mock_security_service)
@@ -183,14 +192,14 @@ class TestUserGateway:
         mock_uow.commit.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_create_user_email_exists(self, user_gateway, mock_security_service, mock_uow_user):
+    async def test_create_user_email_exists(
+        self, user_gateway, mock_security_service, mock_uow_user
+    ):
         user_gateway.get_by_email = AsyncMock(return_value=mock_uow_user)
         user_gateway.get_by_username = AsyncMock(return_value=None)
 
         user_create = schemas.UserCreate(
-            username="newuser",
-            email="existing@example.com",
-            password="password123"
+            username="newuser", email="existing@example.com", password="password123"
         )
 
         result = await user_gateway.create_user(user_create, mock_security_service)
@@ -199,14 +208,14 @@ class TestUserGateway:
         mock_security_service.get_password_hash.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_create_user_username_exists(self, user_gateway, mock_security_service, mock_uow_user):
+    async def test_create_user_username_exists(
+        self, user_gateway, mock_security_service, mock_uow_user
+    ):
         user_gateway.get_by_email = AsyncMock(return_value=None)
         user_gateway.get_by_username = AsyncMock(return_value=mock_uow_user)
 
         user_create = schemas.UserCreate(
-            username="existinguser",
-            email="new@example.com",
-            password="password123"
+            username="existinguser", email="new@example.com", password="password123"
         )
 
         result = await user_gateway.create_user(user_create, mock_security_service)
@@ -215,20 +224,28 @@ class TestUserGateway:
         mock_security_service.get_password_hash.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_update_user_with_password(self, user_gateway, mock_uow_user, mock_security_service, mock_uow):
+    async def test_update_user_with_password(
+        self, user_gateway, mock_uow_user, mock_security_service, mock_uow
+    ):
         user_update = schemas.UserUpdate(password="newpassword")
 
-        result = await user_gateway.update_user(mock_uow_user, user_update, mock_security_service)
+        result = await user_gateway.update_user(
+            mock_uow_user, user_update, mock_security_service
+        )
 
         assert result == mock_uow_user
         mock_security_service.get_password_hash.assert_called_once_with("newpassword")
         mock_uow.commit.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_update_user_without_password(self, user_gateway, mock_uow_user, mock_security_service, mock_uow):
+    async def test_update_user_without_password(
+        self, user_gateway, mock_uow_user, mock_security_service, mock_uow
+    ):
         user_update = schemas.UserUpdate(username="newusername")
 
-        result = await user_gateway.update_user(mock_uow_user, user_update, mock_security_service)
+        result = await user_gateway.update_user(
+            mock_uow_user, user_update, mock_security_service
+        )
 
         assert result == mock_uow_user
         mock_security_service.get_password_hash.assert_not_called()
@@ -247,41 +264,55 @@ class TestUserGateway:
         mock_session.execute.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_verify_password_success(self, user_gateway, mock_uow_user, mock_security_service):
+    async def test_verify_password_success(
+        self, user_gateway, mock_uow_user, mock_security_service
+    ):
         mock_security_service.verify_password.return_value = True
 
-        result = await user_gateway.verify_password(mock_uow_user, "correct_password", mock_security_service)
+        result = await user_gateway.verify_password(
+            mock_uow_user, "correct_password", mock_security_service
+        )
 
         assert result is True
         mock_security_service.verify_password.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_verify_password_failure(self, user_gateway, mock_uow_user, mock_security_service):
+    async def test_verify_password_failure(
+        self, user_gateway, mock_uow_user, mock_security_service
+    ):
         mock_security_service.verify_password.return_value = False
 
-        result = await user_gateway.verify_password(mock_uow_user, "wrong_password", mock_security_service)
+        result = await user_gateway.verify_password(
+            mock_uow_user, "wrong_password", mock_security_service
+        )
 
         assert result is False
         mock_security_service.verify_password.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_update_password(self, user_gateway, mock_uow_user, mock_security_service, mock_uow):
-        await user_gateway.update_password(mock_uow_user, "newpassword", mock_security_service)
+    async def test_update_password(
+        self, user_gateway, mock_uow_user, mock_security_service, mock_uow
+    ):
+        await user_gateway.update_password(
+            mock_uow_user, "newpassword", mock_security_service
+        )
 
         mock_security_service.get_password_hash.assert_called_once_with("newpassword")
         mock_uow.register_dirty.assert_called_once()
         mock_uow.commit.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_delete_user_found(self, user_gateway, mock_session, mock_user, mock_uow):
+    async def test_delete_user_found(
+        self, user_gateway, mock_session, mock_user, mock_uow
+    ):
         # Mock the user lookup result
         mock_user_result = Mock()
         mock_user_result.scalar_one_or_none.return_value = mock_user
-        
+
         # Mock the token lookup result
         mock_token_result = Mock()
         mock_token_result.scalars.return_value.all.return_value = []  # No tokens
-        
+
         mock_session.execute.side_effect = [mock_user_result, mock_token_result]
 
         result = await user_gateway.delete_user(1)

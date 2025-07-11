@@ -2,20 +2,21 @@
 
 from typing import Protocol, TypeVar
 
-from app.infrastructure import models
 from sqlalchemy.ext.asyncio import AsyncSession
 
-ModelT = TypeVar("ModelT", contravariant=True)
+from app.infrastructure import models
+
+ModelT_contra = TypeVar("ModelT_contra", contravariant=True)
 
 
-class DataMapper(Protocol[ModelT]):
-    async def insert(self, model: ModelT):
+class DataMapper(Protocol[ModelT_contra]):
+    async def insert(self, model: ModelT_contra):
         raise NotImplementedError
 
-    async def delete(self, model: ModelT):
+    async def delete(self, model: ModelT_contra):
         raise NotImplementedError
 
-    async def update(self, model: ModelT):
+    async def update(self, model: ModelT_contra):
         raise NotImplementedError
 
 

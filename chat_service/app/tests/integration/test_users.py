@@ -30,9 +30,11 @@ async def test_update_user(client: AsyncClient, auth_header):
     update_data = {
         "email": "newemail@example.com",
         "username": "newusername",
-        "password": "newpassword123"
+        "password": "newpassword123",
     }
-    response = await client.put("/api/v1/users/me", headers=auth_header, json=update_data)
+    response = await client.put(
+        "/api/v1/users/me", headers=auth_header, json=update_data
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["email"] == update_data["email"]
@@ -41,7 +43,7 @@ async def test_update_user(client: AsyncClient, auth_header):
     # Try logging in with new credentials
     login_response = await client.post(
         "/api/v1/auth/login",
-        data={"username": update_data["username"], "password": update_data["password"]}
+        data={"username": update_data["username"], "password": update_data["password"]},
     )
     assert login_response.status_code == 200
 
@@ -56,7 +58,9 @@ async def test_delete_user(client: AsyncClient, auth_header):
 
 
 async def test_search_users(client: AsyncClient, auth_header, test_user2):
-    response = await client.get(f"/api/v1/users/search?query={test_user2.username[:4]}", headers=auth_header)
+    response = await client.get(
+        f"/api/v1/users/search?query={test_user2.username[:4]}", headers=auth_header
+    )
     assert response.status_code == 200
     data = response.json()
     assert len(data) > 0
@@ -64,7 +68,9 @@ async def test_search_users(client: AsyncClient, auth_header, test_user2):
 
 
 async def test_user_filter_by_username(client: AsyncClient, auth_header, test_user):
-    response = await client.get(f"/api/v1/users/?username={test_user.username[:4]}", headers=auth_header)
+    response = await client.get(
+        f"/api/v1/users/?username={test_user.username[:4]}", headers=auth_header
+    )
     assert response.status_code == 200
     data = response.json()
     assert len(data) > 0
@@ -76,7 +82,11 @@ async def test_user_pagination(client: AsyncClient, auth_header):
     for i in range(20):
         await client.post(
             "/api/v1/auth/register",
-            json={"username": f"testuser{i}", "email": f"testuser{i}@example.com", "password": "testpassword123"}
+            json={
+                "username": f"testuser{i}",
+                "email": f"testuser{i}@example.com",
+                "password": "testpassword123",
+            },
         )
 
     # Get first page
@@ -99,13 +109,17 @@ async def test_user_pagination(client: AsyncClient, auth_header):
 
 async def test_update_user_partial(client: AsyncClient, auth_header):
     # Update only email
-    response = await client.put("/api/v1/users/me", headers=auth_header, json={"email": "partial@example.com"})
+    response = await client.put(
+        "/api/v1/users/me", headers=auth_header, json={"email": "partial@example.com"}
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["email"] == "partial@example.com"
 
     # Update only username
-    response = await client.put("/api/v1/users/me", headers=auth_header, json={"username": "partialupdate"})
+    response = await client.put(
+        "/api/v1/users/me", headers=auth_header, json={"username": "partialupdate"}
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["username"] == "partialupdate"
@@ -113,17 +127,23 @@ async def test_update_user_partial(client: AsyncClient, auth_header):
 
 async def test_update_user_invalid_data(client: AsyncClient, auth_header):
     # Try to update with invalid email
-    response = await client.put("/api/v1/users/me", headers=auth_header, json={"email": "invalid-email"})
+    response = await client.put(
+        "/api/v1/users/me", headers=auth_header, json={"email": "invalid-email"}
+    )
     assert response.status_code == 422
 
     # Try to update with short password
-    response = await client.put("/api/v1/users/me", headers=auth_header, json={"password": "short"})
+    response = await client.put(
+        "/api/v1/users/me", headers=auth_header, json={"password": "short"}
+    )
     assert response.status_code == 422
 
 
 async def test_user_soft_delete(client: AsyncClient, auth_header):
     # Soft delete the user
-    response = await client.put("/api/v1/users/me", headers=auth_header, json={"is_active": False})
+    response = await client.put(
+        "/api/v1/users/me", headers=auth_header, json={"is_active": False}
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["is_active"] == False
@@ -131,7 +151,7 @@ async def test_user_soft_delete(client: AsyncClient, auth_header):
     # Try to login with the deactivated user
     login_response = await client.post(
         "/api/v1/auth/login",
-        data={"username": data["username"], "password": "testpassword"}
+        data={"username": data["username"], "password": "testpassword"},
     )
     assert login_response.status_code == 401
 
@@ -147,10 +167,7 @@ async def test_get_users_me_unauthorized(client: AsyncClient):
 
 
 async def test_update_user_me_unauthorized(client: AsyncClient):
-    response = await client.put(
-        "/api/v1/users/me",
-        json={"username": "newusername"}
-    )
+    response = await client.put("/api/v1/users/me", json={"username": "newusername"})
     assert response.status_code == 401
 
 
@@ -171,6 +188,8 @@ async def test_search_users_empty_query(client: AsyncClient, auth_header):
 
 
 async def test_search_users_no_matches(client: AsyncClient, auth_header):
-    response = await client.get("/api/v1/users/search?query=nonexistentuser12345", headers=auth_header)
+    response = await client.get(
+        "/api/v1/users/search?query=nonexistentuser12345", headers=auth_header
+    )
     assert response.status_code == 200
     assert response.json() == []

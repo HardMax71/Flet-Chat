@@ -1,5 +1,10 @@
 # app/api/dependencies.py
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
+
+from fastapi import Depends, HTTPException, Request, status
+from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.config import AppConfig
 from app.gateways.chat_gateway import ChatGateway
 from app.gateways.message_gateway import MessageGateway
@@ -13,9 +18,6 @@ from app.interactors.chat_interactor import ChatInteractor
 from app.interactors.message_interactor import MessageInteractor
 from app.interactors.token_interactor import TokenInteractor
 from app.interactors.user_interactor import UserInteractor
-from fastapi import Depends, HTTPException, status, Request
-from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.ext.asyncio import AsyncSession
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 

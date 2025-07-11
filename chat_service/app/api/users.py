@@ -1,21 +1,21 @@
 # app/api/users.py
-from typing import List, Optional
 
-from app.api.dependencies import get_user_interactor, get_current_active_user
+from fastapi import APIRouter, Depends, HTTPException, Query
+
+from app.api.dependencies import get_current_active_user, get_user_interactor
 from app.infrastructure import schemas
 from app.interactors.user_interactor import UserInteractor
-from fastapi import APIRouter, Depends, HTTPException, Query
 
 router = APIRouter()
 
 
-@router.get("/", response_model=List[schemas.User])
+@router.get("/", response_model=list[schemas.User])
 async def read_users(
     skip: int = 0,
     limit: int = 100,
-    username: Optional[str] = Query(None, description="Filter users by username"),
+    username: str | None = Query(None, description="Filter users by username"),
     user_interactor: UserInteractor = Depends(get_user_interactor),
-    current_user: schemas.User = Depends(get_current_active_user),
+    _: schemas.User = Depends(get_current_active_user),
 ):
     users = await user_interactor.get_users(skip=skip, limit=limit, username=username)
     return users
@@ -48,7 +48,7 @@ async def delete_user(
         raise HTTPException(status_code=404, detail="User not found")
 
 
-@router.get("/search", response_model=List[schemas.UserBasic])
+@router.get("/search", response_model=list[schemas.UserBasic])
 async def search_users(
     query: str,
     user_interactor: UserInteractor = Depends(get_user_interactor),

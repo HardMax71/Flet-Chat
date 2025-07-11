@@ -3,9 +3,10 @@
 from unittest.mock import AsyncMock
 
 import pytest
+
 from app.infrastructure import models
 from app.infrastructure.data_mappers import UserMapper
-from app.infrastructure.uow import UoWModel, UnitOfWork
+from app.infrastructure.uow import UnitOfWork, UoWModel
 
 
 @pytest.fixture
@@ -40,7 +41,9 @@ async def test_register_new_model(uow):
 
     assert len(uow.new) == 1, "New models should be tracked in 'new'"
     assert id(user) in uow.new, "Registered model should exist in 'new'"
-    assert isinstance(uow_model, UoWModel), "Returned object should be an instance of UoWModel"
+    assert isinstance(uow_model, UoWModel), (
+        "Returned object should be an instance of UoWModel"
+    )
 
 
 @pytest.mark.asyncio
@@ -71,7 +74,9 @@ async def test_register_existing_model_as_dirty(uow):
     uow_model.email = "updated@example.com"
 
     # Now, 'dirty' should include the model
-    assert len(uow.dirty) == 1, "Existing models should be tracked in 'dirty' when modified"
+    assert len(uow.dirty) == 1, (
+        "Existing models should be tracked in 'dirty' when modified"
+    )
     assert id(user) in uow.dirty, "Modified existing model should exist in 'dirty'"
 
 
@@ -101,10 +106,16 @@ async def test_register_deleted_model_removes_from_new_and_dirty(uow):
     uow.register_deleted(dirty_user)
 
     assert id(new_user) not in uow.new, "Deleted new model shouldn't remain in 'new'"
-    assert id(dirty_user) not in uow.dirty, "Deleted dirty model should be removed from 'dirty'"
-    assert id(dirty_user) in uow.deleted, "Deleted dirty model should be added to 'deleted'"
+    assert id(dirty_user) not in uow.dirty, (
+        "Deleted dirty model should be removed from 'dirty'"
+    )
+    assert id(dirty_user) in uow.deleted, (
+        "Deleted dirty model should be added to 'deleted'"
+    )
     # New models are not added to deleted when removed
-    assert id(new_user) not in uow.deleted, "Deleted new model should not be in 'deleted'"
+    assert id(new_user) not in uow.deleted, (
+        "Deleted new model should not be in 'deleted'"
+    )
 
 
 @pytest.mark.asyncio
@@ -178,7 +189,9 @@ async def test_register_uowmodel(uow):
     # Changing a property of a new model should not mark it as dirty
     uow_model.email = "updated@example.com"
     assert id(user) in uow.new, "Model should still be in 'new' after property change"
-    assert id(user) not in uow.dirty, "New model should not be marked as dirty when changed"
+    assert id(user) not in uow.dirty, (
+        "New model should not be marked as dirty when changed"
+    )
 
     # Simulate commit (clear the new dictionary)
     uow.new.clear()
@@ -186,7 +199,9 @@ async def test_register_uowmodel(uow):
 
     # Now changing a property should mark it as dirty
     uow_model.username = "updateduser"
-    assert id(user) in uow.dirty, "Model should be marked as dirty after property change post-commit"
+    assert id(user) in uow.dirty, (
+        "Model should be marked as dirty after property change post-commit"
+    )
 
 
 @pytest.mark.asyncio

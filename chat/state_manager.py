@@ -1,8 +1,9 @@
 import json
 import logging
 import threading
+from collections.abc import Callable
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from threading import RLock
@@ -45,7 +46,7 @@ class AppState:
             return
 
         self._initialized = True
-        self._instance_lock: "RLock" = threading.RLock()
+        self._instance_lock: RLock = threading.RLock()
 
         # Configure logging
         self.logger = logging.getLogger("AppState")
@@ -59,21 +60,21 @@ class AppState:
             self.logger.addHandler(handler)
 
         # State data
-        self._current_user: Optional[Dict[str, Any]] = None
+        self._current_user: dict[str, Any] | None = None
         self._is_authenticated: bool = False
-        self._chats: List[Dict[str, Any]] = []
-        self._current_chat_id: Optional[int] = None
-        self._unread_counts: Dict[int, int] = {}  # chat_id -> unread_count
+        self._chats: list[dict[str, Any]] = []
+        self._current_chat_id: int | None = None
+        self._unread_counts: dict[int, int] = {}  # chat_id -> unread_count
         self._is_connected: bool = True
 
         # Observer callbacks: event -> list of callbacks
-        self._observers: Dict[StateEvent, List[Callable]] = {
+        self._observers: dict[StateEvent, list[Callable]] = {
             event: [] for event in StateEvent
         }
 
     # Observer pattern methods
     def subscribe(
-        self, event: StateEvent, callback: Callable[[Dict[str, Any]], None]
+        self, event: StateEvent, callback: Callable[[dict[str, Any]], None]
     ) -> None:
         """Subscribe to state changes for a specific event."""
         with self._instance_lock:
@@ -82,7 +83,7 @@ class AppState:
                 self.logger.info(f"Subscribed to {event.value}")
 
     def unsubscribe(
-        self, event: StateEvent, callback: Callable[[Dict[str, Any]], None]
+        self, event: StateEvent, callback: Callable[[dict[str, Any]], None]
     ) -> None:
         """Unsubscribe from state changes for a specific event."""
         with self._instance_lock:
@@ -90,7 +91,7 @@ class AppState:
                 self._observers[event].remove(callback)
                 self.logger.info(f"Unsubscribed from {event.value}")
 
-    def _notify_observers(self, event: StateEvent, data: Dict[str, Any]) -> None:
+    def _notify_observers(self, event: StateEvent, data: dict[str, Any]) -> None:
         """Notify all observers of a state change."""
         with self._instance_lock:
             observers = self._observers[
@@ -102,12 +103,12 @@ class AppState:
                 callback(data)
             except Exception as e:
                 self.logger.error(
-                    f"Error in observer callback for {event.value}: {str(e)}"
+                    f"Error in observer callback for {event.value}: {e!s}"
                 )
 
     # User state management
     @property
-    def current_user(self) -> Optional[Dict[str, Any]]:
+    def current_user(self) -> dict[str, Any] | None:
         with self._instance_lock:
             return self._current_user.copy() if self._current_user else None
 
@@ -116,7 +117,7 @@ class AppState:
         with self._instance_lock:
             return self._is_authenticated
 
-    def set_current_user(self, user: Dict[str, Any]) -> None:
+    def set_current_user(self, user: dict[str, Any]) -> None:
         """Set the current user and notify observers."""
         with self._instance_lock:
             self._current_user = user.copy() if user else None
@@ -126,7 +127,7 @@ class AppState:
         self._notify_observers(event, {"user": self._current_user})
         self.logger.info(f"User state changed: {event.value}")
 
-    def update_current_user(self, user_updates: Dict[str, Any]) -> None:
+    def update_current_user(self, user_updates: dict[str, Any]) -> None:
         """Update current user information and notify observers."""
         with self._instance_lock:
             if self._current_user:
@@ -147,16 +148,16 @@ class AppState:
 
     # Chat state management
     @property
-    def chats(self) -> List[Dict[str, Any]]:
+    def chats(self) -> list[dict[str, Any]]:
         with self._instance_lock:
             return [chat.copy() for chat in self._chats]
 
     @property
-    def current_chat_id(self) -> Optional[int]:
+    def current_chat_id(self) -> int | None:
         with self._instance_lock:
             return self._current_chat_id
 
-    def set_chats(self, chats: List[Dict[str, Any]]) -> None:
+    def set_chats(self, chats: list[dict[str, Any]]) -> None:
         """Set the complete chat list and notify observers."""
         with self._instance_lock:
             self._chats = [chat.copy() for chat in chats] if chats else []
@@ -165,7 +166,7 @@ class AppState:
         self._notify_observers(StateEvent.CHATS_LOADED, {"chats": chats_data})
         self.logger.info(f"Loaded {len(chats_data)} chats")
 
-    def add_chat(self, chat: Dict[str, Any]) -> None:
+    def add_chat(self, chat: dict[str, Any]) -> None:
         """Add a new chat and notify observers."""
         with self._instance_lock:
             chat_copy = chat.copy()
@@ -174,7 +175,7 @@ class AppState:
         self._notify_observers(StateEvent.CHAT_ADDED, {"chat": chat_copy})
         self.logger.info(f"Added chat: {chat.get('name', 'Unknown')}")
 
-    def update_chat(self, chat_id: int, updates: Dict[str, Any]) -> None:
+    def update_chat(self, chat_id: int, updates: dict[str, Any]) -> None:
         """Update an existing chat and notify observers."""
         with self._instance_lock:
             for i, chat in enumerate(self._chats):
@@ -208,7 +209,7 @@ class AppState:
         )
         self.logger.info(f"Removed chat {chat_id}")
 
-    def set_current_chat(self, chat_id: Optional[int]) -> None:
+    def set_current_chat(self, chat_id: int | None) -> None:
         """Set the currently active chat and notify observers."""
         with self._instance_lock:
             old_chat_id = self._current_chat_id
@@ -223,7 +224,7 @@ class AppState:
 
     # Unread count management
     @property
-    def unread_counts(self) -> Dict[int, int]:
+    def unread_counts(self) -> dict[int, int]:
         with self._instance_lock:
             return self._unread_counts.copy()
 
@@ -265,7 +266,7 @@ class AppState:
             self.logger.info(f"Connection status changed: {connected}")
 
     # Utility methods
-    def get_chat_by_id(self, chat_id: int) -> Optional[Dict[str, Any]]:
+    def get_chat_by_id(self, chat_id: int) -> dict[str, Any] | None:
         """Get a specific chat by ID."""
         with self._instance_lock:
             for chat in self._chats:
@@ -308,7 +309,7 @@ class StateManager:
             self.logger.addHandler(handler)
 
         # Track Redis subscriptions
-        self._subscriptions: Dict[str, bool] = {}
+        self._subscriptions: dict[str, bool] = {}
 
     def initialize(self) -> None:
         """Initialize state manager and load initial data if authenticated."""
@@ -334,7 +335,7 @@ class StateManager:
         else:
             self.logger.error(f"Failed to load chats: {chats_response.error}")
 
-    def load_unread_counts(self, chats: List[Dict[str, Any]]) -> None:
+    def load_unread_counts(self, chats: list[dict[str, Any]]) -> None:
         """Load unread message counts for all chats."""
         for chat in chats:
             chat_id = chat.get("id")
@@ -400,7 +401,7 @@ class StateManager:
                 self.app_state.update_unread_count(chat_id, unread_count)
 
         except (json.JSONDecodeError, KeyError) as e:
-            self.logger.error(f"Error processing unread count update: {str(e)}")
+            self.logger.error(f"Error processing unread count update: {e!s}")
 
     def _handle_message_update(self, data: str) -> None:
         """Handle Redis message updates."""
@@ -410,10 +411,10 @@ class StateManager:
                 StateEvent.MESSAGE_RECEIVED, {"message": message}
             )
         except json.JSONDecodeError as e:
-            self.logger.error(f"Error processing message update: {str(e)}")
+            self.logger.error(f"Error processing message update: {e!s}")
 
     # Public API for state management operations
-    def login_user(self, user_data: Dict[str, Any]) -> None:
+    def login_user(self, user_data: dict[str, Any]) -> None:
         """Handle successful user login."""
         self.app_state.set_current_user(user_data)
         self.load_initial_data()
@@ -437,7 +438,7 @@ class StateManager:
             return True
         return False
 
-    def add_chat(self, chat_data: Dict[str, Any]) -> None:
+    def add_chat(self, chat_data: dict[str, Any]) -> None:
         """Add a new chat and set up subscriptions."""
         self.app_state.add_chat(chat_data)
 
@@ -461,7 +462,7 @@ class StateManager:
 
         self.app_state.remove_chat(chat_id)
 
-    def set_current_chat(self, chat_id: Optional[int]) -> None:
+    def set_current_chat(self, chat_id: int | None) -> None:
         """Set the current active chat and manage message subscriptions."""
         old_chat_id = self.app_state.current_chat_id
 

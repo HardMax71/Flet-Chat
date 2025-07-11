@@ -1,14 +1,14 @@
 # app/infrastructure/chat_gateway.py
-from typing import List, Optional, Dict
 
-from app.gateways.interfaces import IChatGateway
-from app.infrastructure import models
-from app.infrastructure import schemas
-from app.infrastructure.data_mappers import ChatMapper
-from app.infrastructure.uow import UnitOfWork, UoWModel
-from sqlalchemy import select, func
+
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+
+from app.gateways.interfaces import IChatGateway
+from app.infrastructure import models, schemas
+from app.infrastructure.data_mappers import ChatMapper
+from app.infrastructure.uow import UnitOfWork, UoWModel
 
 
 class ChatGateway(IChatGateway):
@@ -17,7 +17,7 @@ class ChatGateway(IChatGateway):
         self.uow = uow
         uow.mappers[models.Chat] = ChatMapper(session)
 
-    async def get_chat(self, chat_id: int, user_id: int) -> Optional[UoWModel]:
+    async def get_chat(self, chat_id: int, user_id: int) -> UoWModel | None:
         stmt = (
             select(models.Chat)
             .options(selectinload(models.Chat.members))
@@ -28,8 +28,8 @@ class ChatGateway(IChatGateway):
         return UoWModel(chat, self.uow) if chat else None
 
     async def get_all(
-        self, user_id: int, skip: int = 0, limit: int = 100, name: Optional[str] = None
-    ) -> List[UoWModel]:
+        self, user_id: int, skip: int = 0, limit: int = 100, name: str | None = None
+    ) -> list[UoWModel]:
         stmt = (
             select(models.Chat)
             .options(selectinload(models.Chat.members))
@@ -45,12 +45,12 @@ class ChatGateway(IChatGateway):
     async def create_chat(self, chat: schemas.ChatCreate, user_id: int) -> UoWModel:
         db_chat = models.Chat(name=chat.name)
         stmt = select(models.User).filter(
-            models.User.id.in_(chat.member_ids + [user_id])
+            models.User.id.in_([*chat.member_ids, user_id])
         )
         result = await self.session.execute(stmt)
         members = list(result.scalars().all())
         db_chat.members = members
-        uow_chat = self.uow.register_new(db_chat)
+        self.uow.register_new(db_chat)
         await self.uow.commit()
 
         # Reload with proper eager loading for return
@@ -65,7 +65,7 @@ class ChatGateway(IChatGateway):
 
     async def add_member(
         self, chat_id: int, user_id: int, current_user_id: int
-    ) -> Optional[UoWModel]:
+    ) -> UoWModel | None:
         chat = await self.get_chat(chat_id, current_user_id)
         if not chat:
             return None
@@ -103,7 +103,7 @@ class ChatGateway(IChatGateway):
 
     async def start_chat(
         self, current_user_id: int, other_user_id: int
-    ) -> Optional[UoWModel]:
+    ) -> UoWModel | None:
         stmt = select(models.User).filter(
             models.User.id.in_([current_user_id, other_user_id])
         )
@@ -115,7 +115,7 @@ class ChatGateway(IChatGateway):
             name=f"Chat between {members[0].username} and {members[1].username}"
         )
         db_chat.members = members
-        uow_chat = self.uow.register_new(db_chat)
+        self.uow.register_new(db_chat)
         await self.uow.commit()
 
         # Reload with proper eager loading for return
@@ -128,7 +128,7 @@ class ChatGateway(IChatGateway):
         reloaded_chat = result.scalar_one()
         return UoWModel(reloaded_chat, self.uow)
 
-    async def get_user_ids_in_chat(self, chat_id: int) -> List[int]:
+    async def get_user_ids_in_chat(self, chat_id: int) -> list[int]:
         stmt = (
             select(models.Chat)
             .options(selectinload(models.Chat.members))
@@ -155,7 +155,7 @@ class ChatGateway(IChatGateway):
 
     async def get_unread_counts_for_chat_members(
         self, chat_id: int, current_user_id: int
-    ) -> Dict[int, int]:
+    ) -> dict[int, int]:
         stmt = (
             select(
                 models.MessageStatus.user_id,

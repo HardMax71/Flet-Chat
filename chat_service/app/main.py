@@ -3,16 +3,17 @@ import logging
 import sys
 from contextlib import asynccontextmanager
 
-from app.api import users, chats, messages, auth
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from sqlalchemy.ext.asyncio import create_async_engine
+
+from app.api import auth, chats, messages, users
 from app.config import AppConfig
 from app.infrastructure.database import create_database
 from app.infrastructure.event_dispatcher import EventDispatcher
 from app.infrastructure.event_handlers import EventHandlers
 from app.infrastructure.redis_client import RedisClient
 from app.infrastructure.security import SecurityService
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
-from sqlalchemy.ext.asyncio import create_async_engine
 
 
 class Application:
@@ -62,17 +63,13 @@ class Application:
         logger.setLevel(logging.INFO)
 
         c_handler = logging.StreamHandler(sys.stdout)
-        # file logs turned off for now
-        # f_handler = RotatingFileHandler('chat_api.log', maxBytes=10 * 1024 * 1024, backupCount=5)
 
         formatter = logging.Formatter(
             "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
         )
         c_handler.setFormatter(formatter)
-        # f_handler.setFormatter(formatter)
 
         logger.addHandler(c_handler)
-        # logger.addHandler(f_handler)
 
         return logger
 
@@ -108,7 +105,7 @@ class Application:
         )
 
         @app.exception_handler(Exception)
-        async def global_exception_handler(request: Request, exc: Exception):
+        async def global_exception_handler(_: Request, exc: Exception):
             self.logger.error(f"Unhandled exception: {exc}")
             return JSONResponse(
                 status_code=500,

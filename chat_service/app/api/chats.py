@@ -1,13 +1,15 @@
 # app/api/chats.py
-from typing import List, Optional
 
-from app.api.dependencies import get_chat_interactor, get_user_interactor
-from app.api.dependencies import get_current_active_user
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
+
+from app.api.dependencies import (
+    get_chat_interactor,
+    get_current_active_user,
+    get_user_interactor,
+)
 from app.infrastructure import schemas
 from app.interactors.chat_interactor import ChatInteractor
 from app.interactors.user_interactor import UserInteractor
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi import Query, Body
 
 router = APIRouter()
 
@@ -24,11 +26,11 @@ async def create_chat(
     return new_chat
 
 
-@router.get("/", response_model=List[schemas.Chat])
+@router.get("/", response_model=list[schemas.Chat])
 async def read_chats(
     skip: int = 0,
     limit: int = 100,
-    name: Optional[str] = Query(None, description="Filter chats by name"),
+    name: str | None = Query(None, description="Filter chats by name"),
     chat_interactor: ChatInteractor = Depends(get_chat_interactor),
     current_user: schemas.User = Depends(get_current_active_user),
 ):
@@ -90,7 +92,7 @@ async def delete_chat(
         raise HTTPException(status_code=404, detail="Chat not found")
 
 
-@router.get("/{chat_id}/members", response_model=List[schemas.User])
+@router.get("/{chat_id}/members", response_model=list[schemas.User])
 async def get_chat_members(
     chat_id: int,
     chat_interactor: ChatInteractor = Depends(get_chat_interactor),

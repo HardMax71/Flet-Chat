@@ -4,7 +4,8 @@ import os
 import queue
 import threading
 import time
-from datetime import datetime, timedelta, timezone
+from contextlib import suppress
+from datetime import UTC, datetime, timedelta
 
 import keyring
 import pytz
@@ -40,7 +41,7 @@ class ApiClient:
             self.logger.addHandler(handler)
 
         REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
-        REDIS_PORT = int(os.environ.get("REDIS_PORT", 6379))
+        REDIS_PORT = int(os.environ.get("REDIS_PORT", "6379"))
 
         # Initialize Redis client with error handling
         try:
@@ -68,7 +69,7 @@ class ApiClient:
             )
         except redis.ConnectionError as e:
             self.logger.error(
-                f"Unable to connect to Redis at {REDIS_HOST}:{REDIS_PORT}.\nERROR: {str(e)}"
+                f"Unable to connect to Redis at {REDIS_HOST}:{REDIS_PORT}.\nERROR: {e!s}"
             )
             self.redis_client = None
             self.pubsub = None
@@ -104,7 +105,7 @@ class ApiClient:
                     self.token_expiry = None
 
         except Exception as e:
-            self.logger.error(f"Error loading stored tokens: {str(e)}")
+            self.logger.error(f"Error loading stored tokens: {e!s}")
             # If there's an error, start with clean slate
             self.access_token = None
             self.refresh_token = None
@@ -142,26 +143,20 @@ class ApiClient:
                     self.logger.info("Removed stored token expiry")
 
         except Exception as e:
-            self.logger.error(f"Error storing tokens: {str(e)}")
+            self.logger.error(f"Error storing tokens: {e!s}")
 
     def _clear_stored_tokens(self):
         """
         Clears all stored tokens from secure storage.
         """
-        try:
+        with suppress(keyring.errors.PasswordDeleteError):
             keyring.delete_password("flet-chat", "access_token")
-        except keyring.errors.PasswordDeleteError:
-            pass  # Token doesn't exist
 
-        try:
+        with suppress(keyring.errors.PasswordDeleteError):
             keyring.delete_password("flet-chat", "refresh_token")
-        except keyring.errors.PasswordDeleteError:
-            pass  # Token doesn't exist
 
-        try:
+        with suppress(keyring.errors.PasswordDeleteError):
             keyring.delete_password("flet-chat", "token_expiry")
-        except keyring.errors.PasswordDeleteError:
-            pass  # Token doesn't exist
 
         self.logger.info("Cleared all stored tokens")
 
@@ -175,7 +170,7 @@ class ApiClient:
 
         # Check if token is expired (with 5 minute buffer)
         if self.token_expiry:
-            current_time = datetime.now(timezone.utc)
+            current_time = datetime.now(UTC)
             if current_time >= self.token_expiry - timedelta(minutes=5):
                 return False
 
@@ -197,13 +192,13 @@ class ApiClient:
                         self.message_queue.put({"channel": channel, "data": data})
             except redis.ConnectionError as e:
                 self.logger.error(
-                    f"Redis connection error: {str(e)}. Attempting to reconnect in 5 seconds..."
+                    f"Redis connection error: {e!s}. Attempting to reconnect in 5 seconds..."
                 )
                 time.sleep(5)  # Wait before reconnecting
                 self._reconnect_redis()
             except Exception as e:
                 self.logger.error(
-                    f"Unexpected error in pubsub listener: {str(e)}. Continuing..."
+                    f"Unexpected error in pubsub listener: {e!s}. Continuing..."
                 )
 
     def _process_messages(self):
@@ -221,7 +216,7 @@ class ApiClient:
                     callback(data)
                 except Exception as e:
                     self.logger.error(
-                        f"Error in callback for channel '{channel}': {str(e)}"
+                        f"Error in callback for channel '{channel}': {e!s}"
                     )
 
     def _handle_response(self, response):
@@ -278,7 +273,7 @@ class ApiClient:
                 self._clear_stored_tokens()
                 return False
         except Exception as e:
-            self.logger.error(f"Exception during token refresh: {str(e)}")
+            self.logger.error(f"Exception during token refresh: {e!s}")
             return False
 
     def _request(self, method, endpoint, auth_required=True, **kwargs):
@@ -289,15 +284,17 @@ class ApiClient:
         headers = kwargs.get("headers", {})
 
         if auth_required:
-            current_time = datetime.now(timezone.utc)
-            if not self.access_token or (
-                self.token_expiry
-                and current_time >= self.token_expiry - timedelta(minutes=5)
-            ):
-                if not self._refresh_token():
-                    return ApiResponse(
-                        False, error="Failed to refresh token. Please log in again."
+            current_time = datetime.now(UTC)
+            if (
+                    not self.access_token
+                    or (
+                            self.token_expiry
+                            and current_time >= self.token_expiry - timedelta(minutes=5)
                     )
+            ) and not self._refresh_token():
+                return ApiResponse(
+                    False, error="Failed to refresh token. Please log in again."
+                )
 
             headers["Authorization"] = f"Bearer {self.access_token}"
             kwargs["headers"] = headers
@@ -307,9 +304,9 @@ class ApiClient:
             api_response = self._handle_response(response)
 
             if (
-                not api_response.success
-                and api_response.status_code == 401
-                and "Could not validate credentials" in (api_response.error or "")
+                    not api_response.success
+                    and api_response.status_code == 401
+                    and "Could not validate credentials" in (api_response.error or "")
             ):
                 self.logger.warning(
                     "Received 401 Unauthorized. Attempting to refresh token."
@@ -322,7 +319,7 @@ class ApiClient:
 
             return api_response
         except Exception as e:
-            self.logger.error(f"HTTP request exception: {str(e)}")
+            self.logger.error(f"HTTP request exception: {e!s}")
             return ApiResponse(False, error=str(e))
 
     def subscribe_to_channel(self, channel_name, callback):
@@ -372,7 +369,7 @@ class ApiClient:
                     self.subscriptions[channel](data)
                 except Exception as e:
                     self.logger.error(
-                        f"Error in callback for channel '{channel}': {str(e)}"
+                        f"Error in callback for channel '{channel}': {e!s}"
                     )
 
     def _reconnect_redis(self):
@@ -380,7 +377,7 @@ class ApiClient:
         Attempts to reconnect to Redis and resubscribe to channels.
         """
         REDIS_HOST = os.environ.get("REDIS_HOST", "localhost")
-        REDIS_PORT = int(os.environ.get("REDIS_PORT", 6379))
+        REDIS_PORT = int(os.environ.get("REDIS_PORT", "6379"))
         try:
             self.redis_client = redis.Redis(
                 host=REDIS_HOST,
@@ -392,13 +389,13 @@ class ApiClient:
             self.redis_client.ping()
             self.pubsub = self.redis_client.pubsub()
             # Resubscribe to existing channels
-            for channel in self.subscriptions.keys():
+            for channel in self.subscriptions:
                 self.pubsub.subscribe(**{channel: self._handle_redis_message})
                 self.logger.info(f"Resubscribed to Redis channel '{channel}'")
             self.logger.info(f"Reconnected to Redis at {REDIS_HOST}:{REDIS_PORT}")
         except redis.ConnectionError as e:
             self.logger.error(
-                f"Failed to reconnect to Redis: {str(e)}. Will retry in 5 seconds."
+                f"Failed to reconnect to Redis: {e!s}. Will retry in 5 seconds."
             )
             time.sleep(5)
             self._reconnect_redis()

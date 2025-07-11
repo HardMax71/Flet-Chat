@@ -1,6 +1,6 @@
 # app/infrastructure/uow.py
 
-from typing import Dict, Any, Type
+from typing import Any
 
 
 class UoWModel:
@@ -22,10 +22,10 @@ class UoWModel:
 
 class UnitOfWork:
     def __init__(self) -> None:
-        self.dirty: Dict[int, Any] = {}
-        self.new: Dict[int, Any] = {}
-        self.deleted: Dict[int, Any] = {}
-        self.mappers: Dict[Type, Any] = {}
+        self.dirty: dict[int, Any] = {}
+        self.new: dict[int, Any] = {}
+        self.deleted: dict[int, Any] = {}
+        self.mappers: dict[type, Any] = {}
 
     def register_dirty(self, model: Any) -> None:
         if isinstance(model, UoWModel):

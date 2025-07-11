@@ -1,12 +1,17 @@
 # app/tests/unit/test_security.py
 import pytest
+
 from app.config import AppConfig
 from app.infrastructure.security import SecurityService
 
 
 @pytest.fixture
 def security_service():
-    config = AppConfig(SECRET_KEY="test_secret", ALGORITHM="HS256", REFRESH_SECRET_KEY="test_refresh_secret")
+    config = AppConfig(
+        SECRET_KEY="test_secret",
+        ALGORITHM="HS256",
+        REFRESH_SECRET_KEY="test_refresh_secret",
+    )
     return SecurityService(config)
 
 

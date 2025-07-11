@@ -1,11 +1,12 @@
-from datetime import datetime, timezone
-from unittest.mock import Mock, AsyncMock, patch
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.gateways.message_gateway import MessageGateway
 from app.infrastructure import models, schemas
 from app.infrastructure.uow import UnitOfWork, UoWModel
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @pytest.fixture
@@ -40,7 +41,7 @@ def mock_message():
     message.chat_id = 1
     message.user_id = 1
     message.is_deleted = False
-    message.created_at = datetime.now(timezone.utc)
+    message.created_at = datetime.now(UTC)
     message.updated_at = None
     message.statuses = []
     return message
@@ -109,7 +110,9 @@ class TestMessageGateway:
         mock_session.execute.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_get_all_with_content_filter(self, message_gateway, mock_session, mock_message):
+    async def test_get_all_with_content_filter(
+            self, message_gateway, mock_session, mock_message
+    ):
         mock_result = Mock()
         mock_result.scalars.return_value.all.return_value = [mock_message]
         mock_session.execute.return_value = mock_result
@@ -120,7 +123,9 @@ class TestMessageGateway:
         mock_session.execute.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_get_all_with_pagination(self, message_gateway, mock_session, mock_message):
+    async def test_get_all_with_pagination(
+            self, message_gateway, mock_session, mock_message
+    ):
         mock_result = Mock()
         mock_result.scalars.return_value.all.return_value = [mock_message]
         mock_session.execute.return_value = mock_result
@@ -131,31 +136,32 @@ class TestMessageGateway:
         mock_session.execute.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_create_message_success(self, message_gateway, mock_session, mock_chat, mock_uow):
+    async def test_create_message_success(
+            self, message_gateway, mock_session, mock_chat, mock_uow
+    ):
         # Mock chat lookup
         mock_chat_result = Mock()
         mock_chat_result.scalar_one_or_none.return_value = mock_chat
-        
+
         # Mock message reload
         mock_message_result = Mock()
         mock_reloaded_message = Mock()
         mock_message_result.scalar_one.return_value = mock_reloaded_message
-        
+
         mock_session.execute.side_effect = [mock_chat_result, mock_message_result]
 
         mock_uow_message = Mock()
         mock_uow.register_new.return_value = mock_uow_message
 
-        message_create = schemas.MessageCreate(
-            content="Test message",
-            chat_id=1
-        )
+        message_create = schemas.MessageCreate(content="Test message", chat_id=1)
 
         # Use AsyncMock for the entire method to avoid SQLAlchemy issues
-        with patch.object(message_gateway, 'create_message', new_callable=AsyncMock) as mock_create:
+        with patch.object(
+                message_gateway, "create_message", new_callable=AsyncMock
+        ) as mock_create:
             mock_result = UoWModel(mock_reloaded_message, mock_uow)
             mock_create.return_value = mock_result
-            
+
             result = await message_gateway.create_message(message_create, user_id=1)
 
             # Should return UoWModel wrapping the reloaded message
@@ -169,16 +175,17 @@ class TestMessageGateway:
         mock_result.scalar_one_or_none.return_value = None
         mock_session.execute.return_value = mock_result
 
-        message_create = schemas.MessageCreate(
-            content="Test message",
-            chat_id=999
-        )
+        message_create = schemas.MessageCreate(content="Test message", chat_id=999)
 
-        with pytest.raises(ValueError, match="Chat with id 999 not found or user is not a member"):
+        with pytest.raises(
+                ValueError, match="Chat with id 999 not found or user is not a member"
+        ):
             await message_gateway.create_message(message_create, user_id=1)
 
     @pytest.mark.asyncio
-    async def test_update_message_success(self, message_gateway, mock_session, mock_message, mock_uow):
+    async def test_update_message_success(
+            self, message_gateway, mock_session, mock_message, mock_uow
+    ):
         mock_result = Mock()
         mock_result.scalar_one_or_none.return_value = mock_message
         mock_session.execute.return_value = mock_result
@@ -207,7 +214,9 @@ class TestMessageGateway:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_delete_message_success(self, message_gateway, mock_session, mock_message, mock_uow):
+    async def test_delete_message_success(
+            self, message_gateway, mock_session, mock_message, mock_uow
+    ):
         mock_result = Mock()
         mock_result.scalar_one_or_none.return_value = mock_message
         mock_session.execute.return_value = mock_result
@@ -233,8 +242,9 @@ class TestMessageGateway:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_update_message_status_existing_status(self, message_gateway, mock_session, mock_message,
-                                                         mock_message_status, mock_uow):
+    async def test_update_message_status_existing_status(
+            self, message_gateway, mock_session, mock_message, mock_message_status, mock_uow
+    ):
         mock_message.statuses = [mock_message_status]
         mock_result = Mock()
         mock_result.scalar_one_or_none.return_value = mock_message
@@ -242,7 +252,9 @@ class TestMessageGateway:
 
         status_update = schemas.MessageStatusUpdate(is_read=True)
 
-        result = await message_gateway.update_message_status(1, user_id=1, status_update=status_update)
+        result = await message_gateway.update_message_status(
+            1, user_id=1, status_update=status_update
+        )
 
         assert result is not None
         assert isinstance(result, UoWModel)
@@ -252,7 +264,9 @@ class TestMessageGateway:
         mock_uow.commit.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_update_message_status_new_status(self, message_gateway, mock_session, mock_message, mock_uow):
+    async def test_update_message_status_new_status(
+            self, message_gateway, mock_session, mock_message, mock_uow
+    ):
         mock_message.statuses = []
         mock_result = Mock()
         mock_result.scalar_one_or_none.return_value = mock_message
@@ -260,7 +274,9 @@ class TestMessageGateway:
 
         status_update = schemas.MessageStatusUpdate(is_read=True)
 
-        result = await message_gateway.update_message_status(1, user_id=1, status_update=status_update)
+        result = await message_gateway.update_message_status(
+            1, user_id=1, status_update=status_update
+        )
 
         assert result is not None
         assert isinstance(result, UoWModel)
@@ -269,22 +285,27 @@ class TestMessageGateway:
         mock_uow.commit.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_update_message_status_message_not_found(self, message_gateway, mock_session):
+    async def test_update_message_status_message_not_found(
+            self, message_gateway, mock_session
+    ):
         mock_result = Mock()
         mock_result.scalar_one_or_none.return_value = None
         mock_session.execute.return_value = mock_result
 
         status_update = schemas.MessageStatusUpdate(is_read=True)
 
-        result = await message_gateway.update_message_status(999, user_id=1, status_update=status_update)
+        result = await message_gateway.update_message_status(
+            999, user_id=1, status_update=status_update
+        )
 
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_update_message_status_mark_as_unread(self, message_gateway, mock_session, mock_message,
-                                                        mock_message_status, mock_uow):
+    async def test_update_message_status_mark_as_unread(
+            self, message_gateway, mock_session, mock_message, mock_message_status, mock_uow
+    ):
         mock_message_status.is_read = True
-        mock_message_status.read_at = datetime.now(timezone.utc)
+        mock_message_status.read_at = datetime.now(UTC)
         mock_message.statuses = [mock_message_status]
         mock_result = Mock()
         mock_result.scalar_one_or_none.return_value = mock_message
@@ -292,7 +313,9 @@ class TestMessageGateway:
 
         status_update = schemas.MessageStatusUpdate(is_read=False)
 
-        result = await message_gateway.update_message_status(1, user_id=1, status_update=status_update)
+        result = await message_gateway.update_message_status(
+            1, user_id=1, status_update=status_update
+        )
 
         assert result is not None
         assert mock_message_status.is_read is False

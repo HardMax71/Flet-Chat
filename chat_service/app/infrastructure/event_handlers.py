@@ -1,13 +1,14 @@
 # app/infrastructure/event_handlers.py
 import json
-from typing import Any, Dict, Optional
+from typing import Any
+
 from app.domain.events import (
     MessageCreated,
-    MessageUpdated,
     MessageDeleted,
-    MessageStatusUpdated,
-    UnreadCountUpdated,
     MessageEvent,
+    MessageStatusUpdated,
+    MessageUpdated,
+    UnreadCountUpdated,
 )
 
 
@@ -16,7 +17,7 @@ class EventHandlers:
         self.redis_client = redis_client
 
     async def publish_message_event(
-        self, event: MessageEvent, additional_data: Optional[Dict[str, Any]] = None
+        self, event: MessageEvent, additional_data: dict[str, Any] | None = None
     ):
         channel_name = f"chat:{event.chat_id}"
 

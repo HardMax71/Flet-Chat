@@ -9,7 +9,11 @@ pytestmark = pytest.mark.asyncio
 async def test_register_user(client: AsyncClient):
     response = await client.post(
         "/api/v1/auth/register",
-        json={"username": "newuser", "email": "newuser@example.com", "password": "newpassword"}
+        json={
+            "username": "newuser",
+            "email": "newuser@example.com",
+            "password": "newpassword",
+        },
     )
     assert response.status_code == 200
     assert "id" in response.json()
@@ -20,7 +24,11 @@ async def test_register_user(client: AsyncClient):
 async def test_register_duplicate_username(client: AsyncClient, test_user):
     response = await client.post(
         "/api/v1/auth/register",
-        json={"username": test_user.username, "email": "another@example.com", "password": "newpassword"}
+        json={
+            "username": test_user.username,
+            "email": "another@example.com",
+            "password": "newpassword",
+        },
     )
     assert response.status_code == 400
     assert "Username already registered" in response.json()["detail"]
@@ -29,7 +37,11 @@ async def test_register_duplicate_username(client: AsyncClient, test_user):
 async def test_register_duplicate_email(client: AsyncClient, test_user):
     response = await client.post(
         "/api/v1/auth/register",
-        json={"username": "uniqueuser", "email": test_user.email, "password": "newpassword"}
+        json={
+            "username": "uniqueuser",
+            "email": test_user.email,
+            "password": "newpassword",
+        },
     )
     assert response.status_code == 400
     assert "Email already registered" in response.json()["detail"]
@@ -38,7 +50,11 @@ async def test_register_duplicate_email(client: AsyncClient, test_user):
 async def test_register_invalid_email(client: AsyncClient):
     response = await client.post(
         "/api/v1/auth/register",
-        json={"username": "invaliduser", "email": "notanemail", "password": "newpassword"}
+        json={
+            "username": "invaliduser",
+            "email": "notanemail",
+            "password": "newpassword",
+        },
     )
     assert response.status_code == 422
 
@@ -46,7 +62,11 @@ async def test_register_invalid_email(client: AsyncClient):
 async def test_register_short_password(client: AsyncClient):
     response = await client.post(
         "/api/v1/auth/register",
-        json={"username": "shortpwuser", "email": "short@example.com", "password": "short"}
+        json={
+            "username": "shortpwuser",
+            "email": "short@example.com",
+            "password": "short",
+        },
     )
     assert response.status_code == 422
 
@@ -54,7 +74,7 @@ async def test_register_short_password(client: AsyncClient):
 async def test_login_user(client: AsyncClient, test_user):
     response = await client.post(
         "/api/v1/auth/login",
-        data={"username": test_user.username, "password": "testpassword"}
+        data={"username": test_user.username, "password": "testpassword"},
     )
     assert response.status_code == 200
     assert "access_token" in response.json()
@@ -65,7 +85,7 @@ async def test_login_user(client: AsyncClient, test_user):
 async def test_login_invalid_credentials(client: AsyncClient):
     response = await client.post(
         "/api/v1/auth/login",
-        data={"username": "nonexistentuser", "password": "wrongpassword"}
+        data={"username": "nonexistentuser", "password": "wrongpassword"},
     )
     assert response.status_code == 401
     assert "Incorrect username or password" in response.json()["detail"]
@@ -75,7 +95,7 @@ async def test_login_inactive_user(client: AsyncClient, test_user):
     # Authenticate as the test user to get an access token
     login_response = await client.post(
         "/api/v1/auth/login",
-        data={"username": test_user.username, "password": "testpassword"}
+        data={"username": test_user.username, "password": "testpassword"},
     )
     assert login_response.status_code == 200
     access_token = login_response.json()["access_token"]
@@ -83,9 +103,7 @@ async def test_login_inactive_user(client: AsyncClient, test_user):
 
     # Deactivate the user using the API endpoint
     update_response = await client.put(
-        "/api/v1/users/me",
-        json={"is_active": False},
-        headers=headers
+        "/api/v1/users/me", json={"is_active": False}, headers=headers
     )
 
     assert update_response.status_code == 200
@@ -93,7 +111,7 @@ async def test_login_inactive_user(client: AsyncClient, test_user):
     # Attempt to login again with the same credentials
     response = await client.post(
         "/api/v1/auth/login",
-        data={"username": test_user.username, "password": "testpassword"}
+        data={"username": test_user.username, "password": "testpassword"},
     )
     assert response.status_code == 401
     assert "Inactive user" in response.json()["detail"]
@@ -102,7 +120,7 @@ async def test_login_inactive_user(client: AsyncClient, test_user):
 async def test_refresh_token(client: AsyncClient, test_user):
     login_response = await client.post(
         "/api/v1/auth/login",
-        data={"username": test_user.username, "password": "testpassword"}
+        data={"username": test_user.username, "password": "testpassword"},
     )
     refresh_token = login_response.json()["refresh_token"]
     original_access_token = login_response.json()["access_token"]
@@ -110,8 +128,7 @@ async def test_refresh_token(client: AsyncClient, test_user):
     await asyncio.sleep(1)
 
     refresh_response = await client.post(
-        "/api/v1/auth/refresh",
-        json={"refresh_token": refresh_token}
+        "/api/v1/auth/refresh", json={"refresh_token": refresh_token}
     )
     assert refresh_response.status_code == 200
     assert "access_token" in refresh_response.json()
@@ -122,56 +139,28 @@ async def test_refresh_token(client: AsyncClient, test_user):
 
 async def test_refresh_token_invalid(client: AsyncClient):
     response = await client.post(
-        "/api/v1/auth/refresh",
-        json={"refresh_token": "invalid_token"}
+        "/api/v1/auth/refresh", json={"refresh_token": "invalid_token"}
     )
     assert response.status_code == 401
     assert "Invalid refresh token" in response.json()["detail"]
 
 
-async def test_login_inactive_user(client: AsyncClient, db_session, app_config):
-    from app.infrastructure.models import User
-    from app.infrastructure.security import SecurityService
-
-    security_service = SecurityService(app_config)
-    hashed_password = security_service.get_password_hash("testpassword")
-
-    # Create inactive user
-    inactive_user = User(
-        username="inactive_user",
-        email="inactive@example.com",
-        hashed_password=hashed_password,
-        is_active=False
-    )
-    db_session.add(inactive_user)
-    await db_session.commit()
-
-    response = await client.post(
-        "/api/v1/auth/login",
-        data={"username": "inactive_user", "password": "testpassword"}
-    )
-    assert response.status_code == 401
-    assert "Inactive user" in response.json()["detail"]
-
-
 async def test_refresh_token_reuse(client: AsyncClient, test_user):
     login_response = await client.post(
         "/api/v1/auth/login",
-        data={"username": test_user.username, "password": "testpassword"}
+        data={"username": test_user.username, "password": "testpassword"},
     )
     refresh_token = login_response.json()["refresh_token"]
 
     # Use refresh token once
     refresh_response = await client.post(
-        "/api/v1/auth/refresh",
-        json={"refresh_token": refresh_token}
+        "/api/v1/auth/refresh", json={"refresh_token": refresh_token}
     )
     assert refresh_response.status_code == 200
 
     # Try to use the same refresh token again
     response = await client.post(
-        "/api/v1/auth/refresh",
-        json={"refresh_token": refresh_token}
+        "/api/v1/auth/refresh", json={"refresh_token": refresh_token}
     )
     assert response.status_code == 200  # Will return a new access token
 
@@ -182,15 +171,14 @@ async def test_access_token_expiration(client: AsyncClient, test_user, app_confi
 
     login_response = await client.post(
         "/api/v1/auth/login",
-        data={"username": test_user.username, "password": "testpassword"}
+        data={"username": test_user.username, "password": "testpassword"},
     )
     access_token = login_response.json()["access_token"]
 
     await asyncio.sleep(4)
 
     me_response = await client.get(
-        "/api/v1/users/me",
-        headers={"Authorization": f"Bearer {access_token}"}
+        "/api/v1/users/me", headers={"Authorization": f"Bearer {access_token}"}
     )
     assert me_response.status_code == 401
 
@@ -203,15 +191,14 @@ async def test_refresh_token_expiration(client: AsyncClient, test_user, app_conf
 
     login_response = await client.post(
         "/api/v1/auth/login",
-        data={"username": test_user.username, "password": "testpassword"}
+        data={"username": test_user.username, "password": "testpassword"},
     )
     refresh_token = login_response.json()["refresh_token"]
 
     await asyncio.sleep(2)
 
     refresh_response = await client.post(
-        "/api/v1/auth/refresh",
-        json={"refresh_token": refresh_token}
+        "/api/v1/auth/refresh", json={"refresh_token": refresh_token}
     )
     assert refresh_response.status_code == 401
     assert "Invalid refresh token" in refresh_response.json()["detail"]
@@ -232,19 +219,22 @@ async def test_logout(client: AsyncClient, auth_header):
 async def test_password_hashing(client: AsyncClient):
     register_response = await client.post(
         "/api/v1/auth/register",
-        json={"username": "hashtest", "email": "hashtest@example.com", "password": "testpassword"}
+        json={
+            "username": "hashtest",
+            "email": "hashtest@example.com",
+            "password": "testpassword",
+        },
     )
     assert register_response.status_code == 200
 
     login_response = await client.post(
-        "/api/v1/auth/login",
-        data={"username": "hashtest", "password": "testpassword"}
+        "/api/v1/auth/login", data={"username": "hashtest", "password": "testpassword"}
     )
     assert login_response.status_code == 200
 
     user_response = await client.get(
         "/api/v1/users/me",
-        headers={"Authorization": f"Bearer {login_response.json()['access_token']}"}
+        headers={"Authorization": f"Bearer {login_response.json()['access_token']}"},
     )
     assert "password" not in user_response.json()
     assert "hashed_password" not in user_response.json()
@@ -254,11 +244,11 @@ async def test_multiple_login_sessions(client: AsyncClient, test_user, db_sessio
     # Login from two different "devices"
     login1 = await client.post(
         "/api/v1/auth/login",
-        data={"username": test_user.username, "password": "testpassword"}
+        data={"username": test_user.username, "password": "testpassword"},
     )
     login2 = await client.post(
         "/api/v1/auth/login",
-        data={"username": test_user.username, "password": "testpassword"}
+        data={"username": test_user.username, "password": "testpassword"},
     )
 
     assert login1.status_code == 200
@@ -268,14 +258,14 @@ async def test_multiple_login_sessions(client: AsyncClient, test_user, db_sessio
     # The first token should now be invalid
     me1 = await client.get(
         "/api/v1/users/me",
-        headers={"Authorization": f"Bearer {login1.json()['access_token']}"}
+        headers={"Authorization": f"Bearer {login1.json()['access_token']}"},
     )
     assert me1.status_code == 401  # Unauthorized
 
     # The second token should be valid
     me2 = await client.get(
         "/api/v1/users/me",
-        headers={"Authorization": f"Bearer {login2.json()['access_token']}"}
+        headers={"Authorization": f"Bearer {login2.json()['access_token']}"},
     )
     assert me2.status_code == 200
 
@@ -283,7 +273,7 @@ async def test_multiple_login_sessions(client: AsyncClient, test_user, db_sessio
 async def test_login_case_insensitive_username(client: AsyncClient, test_user):
     response = await client.post(
         "/api/v1/auth/login",
-        data={"username": test_user.username.upper(), "password": "testpassword"}
+        data={"username": test_user.username.upper(), "password": "testpassword"},
     )
     assert response.status_code == 200
     assert "access_token" in response.json()
@@ -292,18 +282,24 @@ async def test_login_case_insensitive_username(client: AsyncClient, test_user):
 async def test_register_user_creation_failed(client: AsyncClient):
     response = await client.post(
         "/api/v1/auth/register",
-        json={"username": "", "email": "invalid_email", "password": ""}
+        json={"username": "", "email": "invalid_email", "password": ""},
     )
     assert response.status_code == 422  # Unprocessable Entity
     errors = response.json()["detail"]
 
     # Check for email validation error
-    assert any(error["loc"] == ["body", "email"] and "not a valid email address" in error["msg"] for error in errors)
+    assert any(
+        error["loc"] == ["body", "email"]
+        and "not a valid email address" in error["msg"]
+        for error in errors
+    )
 
     # Check for password length error
     assert any(
-        error["loc"] == ["body", "password"] and "String should have at least 8 characters" in error["msg"] for error in
-        errors)
+        error["loc"] == ["body", "password"]
+        and "String should have at least 8 characters" in error["msg"]
+        for error in errors
+    )
 
     # Check that there's no specific error for username
     assert not any("username" in error["loc"] for error in errors)
@@ -311,8 +307,7 @@ async def test_register_user_creation_failed(client: AsyncClient):
 
 async def test_refresh_token_invalid_token(client: AsyncClient):
     response = await client.post(
-        "/api/v1/auth/refresh",
-        json={"refresh_token": "invalid_token"}
+        "/api/v1/auth/refresh", json={"refresh_token": "invalid_token"}
     )
     assert response.status_code == 401
     assert "Invalid refresh token" in response.json()["detail"]
@@ -322,7 +317,7 @@ async def test_refresh_token_invalid_user(client: AsyncClient, test_user):
     # First, login to get tokens
     login_response = await client.post(
         "/api/v1/auth/login",
-        data={"username": test_user.username, "password": "testpassword"}
+        data={"username": test_user.username, "password": "testpassword"},
     )
     assert login_response.status_code == 200
     access_token = login_response.json()["access_token"]
@@ -332,14 +327,13 @@ async def test_refresh_token_invalid_user(client: AsyncClient, test_user):
     deactivate_response = await client.put(
         "/api/v1/users/me",
         json={"is_active": False},
-        headers={"Authorization": f"Bearer {access_token}"}
+        headers={"Authorization": f"Bearer {access_token}"},
     )
     assert deactivate_response.status_code == 200
 
     # Attempt to refresh the token with the now-inactive user
     response = await client.post(
-        "/api/v1/auth/refresh",
-        json={"refresh_token": refresh_token}
+        "/api/v1/auth/refresh", json={"refresh_token": refresh_token}
     )
 
     assert response.status_code == 401
@@ -350,7 +344,7 @@ async def test_refresh_token_inactive_user(client: AsyncClient, test_user):
     # First, login to get tokens and deactivate the user
     login_response = await client.post(
         "/api/v1/auth/login",
-        data={"username": test_user.username, "password": "testpassword"}
+        data={"username": test_user.username, "password": "testpassword"},
     )
     assert login_response.status_code == 200
     access_token = login_response.json()["access_token"]
@@ -360,14 +354,13 @@ async def test_refresh_token_inactive_user(client: AsyncClient, test_user):
     update_response = await client.put(
         "/api/v1/users/me",
         json={"is_active": False},
-        headers={"Authorization": f"Bearer {access_token}"}
+        headers={"Authorization": f"Bearer {access_token}"},
     )
     assert update_response.status_code == 200
 
     # Attempt to refresh the token with the inactive user
     refresh_response = await client.post(
-        "/api/v1/auth/refresh",
-        json={"refresh_token": refresh_token}
+        "/api/v1/auth/refresh", json={"refresh_token": refresh_token}
     )
     assert refresh_response.status_code == 401
     assert "User not found or inactive" in refresh_response.json()["detail"]
@@ -375,8 +368,7 @@ async def test_refresh_token_inactive_user(client: AsyncClient, test_user):
 
 async def test_logout_invalid_token(client: AsyncClient):
     response = await client.post(
-        "/api/v1/auth/logout",
-        headers={"Authorization": "Bearer invalid_token"}
+        "/api/v1/auth/logout", headers={"Authorization": "Bearer invalid_token"}
     )
     assert response.status_code == 401
     assert "Invalid token" in response.json()["detail"]

@@ -1,13 +1,13 @@
 # app/infrastructure/event_dispatcher.py
 from collections import defaultdict
-from typing import Callable, Dict, List
+from collections.abc import Callable
 
 from app.domain.events import Event
 
 
 class EventDispatcher:
     def __init__(self) -> None:
-        self.handlers: Dict[str, List[Callable]] = defaultdict(list)
+        self.handlers: dict[str, list[Callable]] = defaultdict(list)
 
     def register(self, event_type: str, handler: Callable) -> None:
         self.handlers[event_type].append(handler)

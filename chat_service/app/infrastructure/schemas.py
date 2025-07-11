@@ -1,8 +1,7 @@
 # app/infrastructure/schemas.py
 from datetime import datetime
-from typing import List, Optional
 
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class UserBase(BaseModel):
@@ -22,10 +21,10 @@ class UserCreate(UserBase):
 
 
 class UserUpdate(BaseModel):
-    email: Optional[EmailStr] = None
-    password: Optional[str] = Field(None, min_length=8)
-    username: Optional[str] = None
-    is_active: Optional[bool] = None  # sort of soft deleting
+    email: EmailStr | None = None
+    password: str | None = Field(None, min_length=8)
+    username: str | None = None
+    is_active: bool | None = None  # sort of soft deleting
 
 
 class User(UserBase):
@@ -41,18 +40,18 @@ class ChatBase(BaseModel):
 
 
 class ChatCreate(ChatBase):
-    member_ids: List[int]
+    member_ids: list[int]
 
 
 class ChatUpdate(BaseModel):
-    name: Optional[str] = None
-    member_ids: Optional[List[int]] = None
+    name: str | None = None
+    member_ids: list[int] | None = None
 
 
 class Chat(ChatBase):
     id: int
     created_at: datetime
-    members: List[User] = Field(default_factory=list)
+    members: list[User] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -72,7 +71,7 @@ class MessageUpdate(BaseModel):
 class MessageStatus(BaseModel):
     user_id: int
     is_read: bool
-    read_at: Optional[datetime] = None
+    read_at: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -84,12 +83,12 @@ class MessageStatusUpdate(BaseModel):
 class Message(MessageBase):
     id: int
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: datetime | None = None
     is_deleted: bool
     chat_id: int
     user_id: int
     user: UserBasic
-    statuses: List[MessageStatus] = []
+    statuses: list[MessageStatus] = []
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -106,9 +105,9 @@ class TokenCreate(TokenBase):
 
 
 class TokenUpdate(BaseModel):
-    access_token: Optional[str] = None
-    refresh_token: Optional[str] = None
-    expires_at: Optional[datetime] = None
+    access_token: str | None = None
+    refresh_token: str | None = None
+    expires_at: datetime | None = None
 
 
 class Token(TokenBase):
@@ -120,8 +119,8 @@ class Token(TokenBase):
 
 
 class TokenData(BaseModel):
-    username: Optional[str] = None
-    exp: Optional[int] = None
+    username: str | None = None
+    exp: int | None = None
 
 
 class TokenResponse(BaseModel):

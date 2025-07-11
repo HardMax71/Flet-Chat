@@ -1,14 +1,15 @@
 # app/infrastructure/user_gateway.py
-from typing import List, Optional
+
+
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.gateways.interfaces import IUserGateway
-from app.infrastructure import models
-from app.infrastructure import schemas
+from app.infrastructure import models, schemas
 from app.infrastructure.data_mappers import UserMapper
+from app.infrastructure.models import Token
 from app.infrastructure.security import SecurityService
 from app.infrastructure.uow import UnitOfWork, UoWModel
-from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class UserGateway(IUserGateway):
@@ -17,13 +18,13 @@ class UserGateway(IUserGateway):
         self.uow = uow
         uow.mappers[models.User] = UserMapper(session)
 
-    async def get_user(self, user_id: int) -> Optional[UoWModel]:
+    async def get_user(self, user_id: int) -> UoWModel | None:
         stmt = select(models.User).filter(models.User.id == user_id)
         result = await self.session.execute(stmt)
         user = result.scalar_one_or_none()
         return UoWModel(user, self.uow) if user else None
 
-    async def get_by_email(self, email: str) -> Optional[UoWModel]:
+    async def get_by_email(self, email: str) -> UoWModel | None:
         stmt = select(models.User).filter(
             func.lower(models.User.email) == func.lower(email)
         )
@@ -31,7 +32,7 @@ class UserGateway(IUserGateway):
         user = result.scalar_one_or_none()
         return UoWModel(user, self.uow) if user else None
 
-    async def get_by_username(self, username: str) -> Optional[UoWModel]:
+    async def get_by_username(self, username: str) -> UoWModel | None:
         stmt = select(models.User).filter(
             func.lower(models.User.username) == func.lower(username)
         )
@@ -40,8 +41,8 @@ class UserGateway(IUserGateway):
         return UoWModel(user, self.uow) if user else None
 
     async def get_all(
-        self, skip: int = 0, limit: int = 100, username: Optional[str] = None
-    ) -> List[UoWModel]:
+        self, skip: int = 0, limit: int = 100, username: str | None = None
+    ) -> list[UoWModel]:
         stmt = select(models.User)
         if username:
             stmt = stmt.filter(models.User.username.ilike(f"%{username}%"))
@@ -56,19 +57,23 @@ class UserGateway(IUserGateway):
         user_update: schemas.UserUpdate,
         security_service: SecurityService,
     ) -> UoWModel:
-        for key, value in user_update.model_dump(exclude_unset=True).items():
-            if key == "password":
-                hashed_password = security_service.get_password_hash(value)
-                setattr(user, "hashed_password", hashed_password)
-            else:
-                setattr(user, key, value)
+        user_update_data = user_update.model_dump(exclude_unset=True)
+        if "password" in user_update_data:
+            hashed_password = security_service.get_password_hash(user_update_data["password"])
+            user.hashed_password = hashed_password
+        if "username" in user_update_data:
+            user.username = user_update_data["username"]
+        if "email" in user_update_data:
+            user.email = user_update_data["email"]
+        if "is_active" in user_update_data:
+            user.is_active = user_update_data["is_active"]
 
         await self.uow.commit()
         return user
 
     async def create_user(
         self, user: schemas.UserCreate, security_service: SecurityService
-    ) -> Optional[UoWModel]:
+    ) -> UoWModel | None:
         existing_user = await self.get_by_email(user.email)
         if existing_user:
             return None
@@ -84,7 +89,7 @@ class UserGateway(IUserGateway):
         await self.uow.commit()
         return uow_user
 
-    async def search_users(self, query: str, current_user_id: int) -> List[UoWModel]:
+    async def search_users(self, query: str, current_user_id: int) -> list[UoWModel]:
         stmt = select(models.User).filter(
             models.User.id != current_user_id, models.User.username.ilike(f"%{query}%")
         )
@@ -105,14 +110,14 @@ class UserGateway(IUserGateway):
         self.uow.register_dirty(user._model)
         await self.uow.commit()
 
-    async def delete_user(self, user_id: int) -> Optional[UoWModel]:
+    async def delete_user(self, user_id: int) -> UoWModel | None:
         stmt = select(models.User).filter(models.User.id == user_id)
         result = await self.session.execute(stmt)
         user = result.scalar_one_or_none()
 
         if user:
             # Delete user's tokens first to avoid foreign key issues
-            token_stmt = select(models.Token).filter(models.Token.user_id == user_id)
+            token_stmt = select(Token).filter(Token.user_id == user_id)
             token_result = await self.session.execute(token_stmt)
             tokens = token_result.scalars().all()
             for token in tokens:

@@ -1,22 +1,20 @@
 # app/infrastructure/models.py
-from typing import Optional, List
 from datetime import datetime
 
-from app.infrastructure.database import Base
 from sqlalchemy import (
-    Integer,
-    String,
+    Boolean,
+    Column,
     DateTime,
     ForeignKey,
-    Table,
-    Column,
-    Boolean,
-    select,
     Index,
-    update,
+    Integer,
+    String,
+    Table,
 )
-from sqlalchemy.orm import relationship, Mapped, mapped_column, selectinload, joinedload
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
+
+from app.infrastructure.base import Base
 
 chat_members = Table(
     "chat_members",
@@ -40,16 +38,16 @@ class User(Base):
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    chats: Mapped[List["Chat"]] = relationship(
+    chats: Mapped[list["Chat"]] = relationship(
         "Chat", secondary=chat_members, back_populates="members", lazy="select"
     )
-    messages: Mapped[List["Message"]] = relationship(
+    messages: Mapped[list["Message"]] = relationship(
         "Message", back_populates="user", lazy="select"
     )
-    tokens: Mapped[List["Token"]] = relationship(
+    tokens: Mapped[list["Token"]] = relationship(
         "Token", back_populates="user", lazy="select"
     )
-    message_statuses: Mapped[List["MessageStatus"]] = relationship(
+    message_statuses: Mapped[list["MessageStatus"]] = relationship(
         "MessageStatus", back_populates="user", lazy="select"
     )
 
@@ -65,10 +63,10 @@ class Chat(Base):
         DateTime(timezone=True), server_default=func.now()
     )
 
-    members: Mapped[List[User]] = relationship(
+    members: Mapped[list[User]] = relationship(
         "User", secondary=chat_members, back_populates="chats", lazy="select"
     )
-    messages: Mapped[List["Message"]] = relationship(
+    messages: Mapped[list["Message"]] = relationship(
         "Message", back_populates="chat", lazy="select"
     )
 
@@ -89,7 +87,7 @@ class Message(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True
     )
-    updated_at: Mapped[Optional[datetime]] = mapped_column(
+    updated_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), onupdate=func.now()
     )
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
@@ -106,7 +104,7 @@ class Message(Base):
         back_populates="messages",
         lazy="joined",  # Many-to-one, often accessed
     )
-    statuses: Mapped[List["MessageStatus"]] = relationship(
+    statuses: Mapped[list["MessageStatus"]] = relationship(
         "MessageStatus", back_populates="message", lazy="select"
     )
 
@@ -145,7 +143,7 @@ class MessageStatus(Base):
     )
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), index=True)
     is_read: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
-    read_at: Mapped[Optional[datetime]] = mapped_column(
+    read_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
 

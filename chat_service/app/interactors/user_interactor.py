@@ -1,5 +1,4 @@
 # app/interactors/user_interactor.py
-from typing import List, Optional
 
 from app.gateways.user_gateway import IUserGateway
 from app.infrastructure import schemas
@@ -12,34 +11,34 @@ class UserInteractor:
         self.security_service = security_service
         self.user_gateway = user_gateway
 
-    async def get_user(self, user_id: int) -> Optional[schemas.User]:
-        user: Optional[UoWModel] = await self.user_gateway.get_user(user_id)
+    async def get_user(self, user_id: int) -> schemas.User | None:
+        user: UoWModel | None = await self.user_gateway.get_user(user_id)
         return schemas.User.model_validate(user._model) if user else None
 
-    async def get_user_by_username(self, username: str) -> Optional[schemas.User]:
-        user: Optional[UoWModel] = await self.user_gateway.get_by_username(username)
+    async def get_user_by_username(self, username: str) -> schemas.User | None:
+        user: UoWModel | None = await self.user_gateway.get_by_username(username)
         return schemas.User.model_validate(user._model) if user else None
 
-    async def get_user_by_email(self, email: str) -> Optional[schemas.User]:
-        user: Optional[UoWModel] = await self.user_gateway.get_by_email(email)
+    async def get_user_by_email(self, email: str) -> schemas.User | None:
+        user: UoWModel | None = await self.user_gateway.get_by_email(email)
         return schemas.User.model_validate(user._model) if user else None
 
     async def get_users(
-        self, skip: int = 0, limit: int = 100, username: Optional[str] = None
-    ) -> List[schemas.User]:
-        users: List[UoWModel] = await self.user_gateway.get_all(skip, limit, username)
+            self, skip: int = 0, limit: int = 100, username: str | None = None
+    ) -> list[schemas.User]:
+        users: list[UoWModel] = await self.user_gateway.get_all(skip, limit, username)
         return [schemas.User.model_validate(user._model) for user in users]
 
-    async def create_user(self, user: schemas.UserCreate) -> Optional[schemas.User]:
-        new_user: Optional[UoWModel] = await self.user_gateway.create_user(
+    async def create_user(self, user: schemas.UserCreate) -> schemas.User | None:
+        new_user: UoWModel | None = await self.user_gateway.create_user(
             user, self.security_service
         )
         return schemas.User.model_validate(new_user._model) if new_user else None
 
     async def update_user(
-        self, user_id: int, user_update: schemas.UserUpdate
-    ) -> Optional[schemas.User]:
-        user: Optional[UoWModel] = await self.user_gateway.get_user(user_id)
+            self, user_id: int, user_update: schemas.UserUpdate
+    ) -> schemas.User | None:
+        user: UoWModel | None = await self.user_gateway.get_user(user_id)
         if not user:
             return None
         updated_user = await self.user_gateway.update_user(
@@ -48,27 +47,25 @@ class UserInteractor:
         return schemas.User.model_validate(updated_user._model)
 
     async def delete_user(self, user_id: int) -> bool:
-        user: Optional[UoWModel] = await self.user_gateway.delete_user(user_id)
-        if not user:
-            return False
-        return True
+        user: UoWModel | None = await self.user_gateway.delete_user(user_id)
+        return user is not None
 
     async def search_users(
-        self, query: str, current_user_id: int
-    ) -> List[schemas.User]:
-        users: List[UoWModel] = await self.user_gateway.search_users(
+            self, query: str, current_user_id: int
+    ) -> list[schemas.User]:
+        users: list[UoWModel] = await self.user_gateway.search_users(
             query, current_user_id
         )
         return [schemas.User.model_validate(user._model) for user in users]
 
     async def verify_user_password(
-        self, username: str, password: str
-    ) -> Optional[schemas.User]:
-        user: Optional[UoWModel] = await self.user_gateway.get_by_username(username)
+            self, username: str, password: str
+    ) -> schemas.User | None:
+        user: UoWModel | None = await self.user_gateway.get_by_username(username)
         if not user:
             return None
         if await self.user_gateway.verify_password(
-            user, password, self.security_service
+                user, password, self.security_service
         ):
             return schemas.User.model_validate(user._model)
         return None

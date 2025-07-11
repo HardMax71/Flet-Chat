@@ -1,6 +1,5 @@
 import datetime
 import secrets
-from typing import Optional
 
 import jwt  # Import PyJWT
 from jwt import ExpiredSignatureError, InvalidTokenError
@@ -19,14 +18,14 @@ class SecurityService:
         return self.pwd_context.hash(password)
 
     def create_access_token(
-        self, data: dict, expires_delta: Optional[datetime.timedelta] = None
+            self, data: dict, expires_delta: datetime.timedelta | None = None
     ):
         to_encode = data.copy()
         to_encode.update({"nonce": secrets.token_hex(8)})  # Add a random nonce
         if expires_delta:
-            expire = datetime.datetime.now(datetime.timezone.utc) + expires_delta
+            expire = datetime.datetime.now(datetime.UTC) + expires_delta
         else:
-            expire = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(
+            expire = datetime.datetime.now(datetime.UTC) + datetime.timedelta(
                 minutes=15
             )
         to_encode.update({"exp": expire})
@@ -37,7 +36,7 @@ class SecurityService:
 
     def create_refresh_token(self, data: dict):
         to_encode = data.copy()
-        expire = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(
+        expire = datetime.datetime.now(datetime.UTC) + datetime.timedelta(
             days=self.config.REFRESH_TOKEN_EXPIRE_DAYS
         )
         to_encode.update({"exp": expire})

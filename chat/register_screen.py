@@ -261,7 +261,7 @@ class RegisterScreen(ft.Container):
         """
         self.logger.info("Showing registration success dialog")
 
-        def close_dlg(e):
+        def close_dlg(_):
             self.chat_app.page.close(dlg)
             self.chat_app.show_login()
 

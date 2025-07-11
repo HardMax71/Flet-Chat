@@ -4,21 +4,22 @@ import random
 import string
 
 import pytest
+from fakeredis import aioredis
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
 from app.api import dependencies
 from app.config import AppConfig
 from app.gateways.chat_gateway import ChatGateway
 from app.gateways.token_gateway import TokenGateway
 from app.gateways.user_gateway import UserGateway
-from app.infrastructure import schemas
+from app.infrastructure import models, schemas
 from app.infrastructure.database import create_database
 from app.infrastructure.security import SecurityService
 from app.infrastructure.uow import UnitOfWork
 from app.main import Application
-from fakeredis import aioredis
-from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 
 @pytest.fixture(scope="function")
@@ -58,10 +59,9 @@ async def engine(app_config):
         app_config.DATABASE_URL,
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,  # Reuse the same connection
-        echo=False
+        echo=False,
     )
     async with engine.begin() as conn:
-        from app.infrastructure import models  # noqa: F401
         await conn.run_sync(models.Base.metadata.create_all)
     yield engine
     await engine.dispose()
@@ -126,19 +126,23 @@ async def app_with_db(app, override_get_db):
 @pytest.fixture(scope="function")
 async def client(app_with_db):
     """Provide an HTTP client with the test app."""
-    async with AsyncClient(transport=ASGITransport(app=app_with_db), base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=ASGITransport(app=app_with_db), base_url="http://test"
+    ) as ac:
         yield ac
 
 
 @pytest.fixture(scope="function")
 async def test_user(db_session, app_config, uow):
     """Create a test user in the database."""
-    random_string = ''.join(random.choices(string.ascii_lowercase + string.digits, k=10))
+    random_string = "".join(
+        random.choices(string.ascii_lowercase + string.digits, k=10)
+    )
     security_service = SecurityService(app_config)
     user_create = schemas.UserCreate(
         username=f"testuser_{random_string}",
         email=f"testuser_{random_string}@example.com",
-        password="testpassword"
+        password="testpassword",
     )
     user_gateway = UserGateway(db_session, uow)
     user = await user_gateway.create_user(user_create, security_service)
@@ -150,8 +154,7 @@ async def test_user(db_session, app_config, uow):
 async def test_chat(db_session, test_user, uow):
     """Create a test chat in the database."""
     chat_create = schemas.ChatCreate(
-        name=f"TestChat_{random.randint(1, 1000)}",
-        member_ids=[test_user.id]
+        name=f"TestChat_{random.randint(1, 1000)}", member_ids=[test_user.id]
     )
     chat_gateway = ChatGateway(db_session, uow)
     chat = await chat_gateway.create_chat(chat_create, test_user.id)
@@ -166,7 +169,7 @@ async def test_user2(db_session, app_config, uow):
     user_create = schemas.UserCreate(
         username=f"testuser2_{random.randint(1, 1000)}",
         email=f"testuser2_{random.randint(1, 1000)}@example.com",
-        password="testpassword2"
+        password="testpassword2",
     )
     user_gateway = UserGateway(db_session, uow)
     user = await user_gateway.create_user(user_create, security_service)
@@ -179,7 +182,10 @@ async def auth_header(client, test_user, db_session, uow):
     """Provide an authorization header for authenticated requests."""
     response = await client.post(
         "/api/v1/auth/login",
-        data={"username": test_user.username, "password": "testpassword"}  # Use form data
+        data={
+            "username": test_user.username,
+            "password": "testpassword",
+        },  # Use form data
     )
     assert response.status_code == 200, f"Login failed: {response.json()}"
     access_token = response.json().get("access_token")

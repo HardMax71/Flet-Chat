@@ -425,18 +425,17 @@ class ChatScreen(ft.Column):
                 # Update existing message (e.g., edited or status changed)
                 self.update_message_in_list(existing_message_row, message)
                 self.logger.info(f"Updated existing message {message['id']} in UI")
-            else:
+            elif message["user"]["id"] != self.current_user_id:
                 # Add new message only if it's not from the current user
                 # (current user's messages are added immediately in send_message)
-                if message["user"]["id"] != self.current_user_id:
-                    self.add_message_to_list(message)
-                    self.logger.info(
-                        f"Added new message {message['id']} from other user to UI"
-                    )
-                else:
-                    self.logger.info(
-                        f"Skipping message {message['id']} from current user (already added)"
-                    )
+                self.add_message_to_list(message)
+                self.logger.info(
+                    f"Added new message {message['id']} from other user to UI"
+                )
+            else:
+                self.logger.info(
+                    f"Skipping message {message['id']} from current user (already added)"
+                )
 
             # Only auto-scroll if user is at bottom
             if self._should_auto_scroll():
@@ -452,7 +451,7 @@ class ChatScreen(ft.Column):
         except json.JSONDecodeError:
             self.logger.error(f"Failed to decode message: {data}")
         except Exception as e:
-            self.logger.error(f"Error processing new message: {str(e)}")
+            self.logger.error(f"Error processing new message: {e!s}")
 
     def update_message_in_list(self, existing_message_row, updated_message):
         """
@@ -479,8 +478,6 @@ class ChatScreen(ft.Column):
         ):
             return
 
-        # [ Text(username), Text(message_content), time_info_row ]
-        # user_text = column_content.controls[0]   # ft.Text(username)
         message_text = column_content.controls[1]  # ft.Text(content or <deleted>)
         time_info = column_content.controls[2]  # ft.Row([... time info ...])
 

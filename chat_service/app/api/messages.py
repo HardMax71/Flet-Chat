@@ -1,25 +1,25 @@
 # app/api/messages.py
-from typing import List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.api.dependencies import (
-    get_message_interactor,
+    get_chat_interactor,
     get_current_active_user,
     get_event_dispatcher,
-    get_chat_interactor,
+    get_message_interactor,
 )
 from app.domain.events import (
     MessageCreated,
     MessageDeleted,
-    MessageUpdated,
     MessageStatusUpdated,
+    MessageUpdated,
     UnreadCountUpdated,
     UserInfo,
 )
 from app.infrastructure import schemas
 from app.infrastructure.event_dispatcher import EventDispatcher
-from app.interactors.message_interactor import MessageInteractor
 from app.interactors.chat_interactor import ChatInteractor
-from fastapi import APIRouter, Depends, HTTPException, Query
+from app.interactors.message_interactor import MessageInteractor
 
 router = APIRouter()
 
@@ -31,11 +31,11 @@ async def create_message(
     chat_interactor: ChatInteractor = Depends(get_chat_interactor),
     current_user: schemas.User = Depends(get_current_active_user),
     event_dispatcher: EventDispatcher = Depends(get_event_dispatcher),
-):
+) -> schemas.Message:
     try:
         db_message = await message_interactor.create_message(message, current_user.id)
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
 
     await event_dispatcher.dispatch(
         MessageCreated(
@@ -62,15 +62,15 @@ async def create_message(
     return db_message
 
 
-@router.get("/{chat_id}", response_model=List[schemas.Message])
+@router.get("/{chat_id}", response_model=list[schemas.Message])
 async def read_messages(
     chat_id: int,
     skip: int = 0,
     limit: int = 100,
-    content: Optional[str] = Query(None, description="Filter messages by content"),
+    content: str | None = Query(None, description="Filter messages by content"),
     message_interactor: MessageInteractor = Depends(get_message_interactor),
     current_user: schemas.User = Depends(get_current_active_user),
-):
+) -> list[schemas.Message]:
     messages = await message_interactor.get_messages(
         chat_id, current_user.id, skip, limit, content
     )
@@ -84,7 +84,7 @@ async def update_message(
     message_interactor: MessageInteractor = Depends(get_message_interactor),
     current_user: schemas.User = Depends(get_current_active_user),
     event_dispatcher: EventDispatcher = Depends(get_event_dispatcher),
-):
+) -> schemas.Message:
     updated_message = await message_interactor.update_message(
         message_id, message_update, current_user.id
     )
@@ -116,7 +116,7 @@ async def delete_message(
     message_interactor: MessageInteractor = Depends(get_message_interactor),
     current_user: schemas.User = Depends(get_current_active_user),
     event_dispatcher: EventDispatcher = Depends(get_event_dispatcher),
-):
+) -> None:
     deleted_message = await message_interactor.delete_message(
         message_id, current_user.id
     )
@@ -148,7 +148,7 @@ async def update_message_status(
     chat_interactor: ChatInteractor = Depends(get_chat_interactor),
     current_user: schemas.User = Depends(get_current_active_user),
     event_dispatcher: EventDispatcher = Depends(get_event_dispatcher),
-):
+) -> schemas.Message:
     updated_message = await message_interactor.update_message_status(
         message_id, current_user.id, status_update
     )

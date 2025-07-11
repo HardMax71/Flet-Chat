@@ -1,11 +1,12 @@
-from datetime import datetime, timezone
-from unittest.mock import Mock, AsyncMock, patch
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.gateways.token_gateway import TokenGateway
 from app.infrastructure import models, schemas
 from app.infrastructure.uow import UnitOfWork, UoWModel
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @pytest.fixture
@@ -39,7 +40,7 @@ def mock_token():
     token.access_token = "access_token_123"
     token.refresh_token = "refresh_token_123"
     token.user_id = 1
-    token.expires_at = datetime.now(timezone.utc)
+    token.expires_at = datetime.now(UTC)
     token.token_type = "bearer"
     return token
 
@@ -61,11 +62,11 @@ class TestTokenGateway:
             access_token="new_access_token",
             refresh_token="new_refresh_token",
             user_id=1,
-            expires_at=datetime.now(timezone.utc),
-            token_type="bearer"
+            expires_at=datetime.now(UTC),
+            token_type="bearer",
         )
 
-        with patch('app.infrastructure.models.Token') as mock_token_class:
+        with patch("app.infrastructure.models.Token") as mock_token_class:
             mock_token_instance = Mock()
             mock_token_class.return_value = mock_token_instance
 
@@ -76,15 +77,17 @@ class TestTokenGateway:
             mock_uow.commit.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_create_token_update_existing(self, token_gateway, mock_uow_token, mock_uow):
+    async def test_create_token_update_existing(
+            self, token_gateway, mock_uow_token, mock_uow
+    ):
         token_gateway.get_by_user_id = AsyncMock(return_value=mock_uow_token)
 
         token_create = schemas.TokenCreate(
             access_token="updated_access_token",
             refresh_token="updated_refresh_token",
             user_id=1,
-            expires_at=datetime.now(timezone.utc),
-            token_type="bearer"
+            expires_at=datetime.now(UTC),
+            token_type="bearer",
         )
 
         result = await token_gateway.create_token(token_create)
@@ -120,7 +123,9 @@ class TestTokenGateway:
         mock_session.execute.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_get_by_access_token_found(self, token_gateway, mock_session, mock_token):
+    async def test_get_by_access_token_found(
+            self, token_gateway, mock_session, mock_token
+    ):
         mock_result = Mock()
         mock_result.scalar_one_or_none.return_value = mock_token
         mock_session.execute.return_value = mock_result
@@ -143,7 +148,9 @@ class TestTokenGateway:
         mock_session.execute.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_get_by_refresh_token_found(self, token_gateway, mock_session, mock_token):
+    async def test_get_by_refresh_token_found(
+            self, token_gateway, mock_session, mock_token
+    ):
         mock_result = Mock()
         mock_result.scalar_one_or_none.return_value = mock_token
         mock_session.execute.return_value = mock_result
@@ -166,7 +173,9 @@ class TestTokenGateway:
         mock_session.execute.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_invalidate_refresh_token_success(self, token_gateway, mock_uow_token, mock_uow):
+    async def test_invalidate_refresh_token_success(
+            self, token_gateway, mock_uow_token, mock_uow
+    ):
         token_gateway.get_by_refresh_token = AsyncMock(return_value=mock_uow_token)
 
         result = await token_gateway.invalidate_refresh_token("refresh_token_123")
@@ -185,7 +194,9 @@ class TestTokenGateway:
         assert result is False
 
     @pytest.mark.asyncio
-    async def test_delete_token_by_access_token_success(self, token_gateway, mock_uow_token, mock_uow):
+    async def test_delete_token_by_access_token_success(
+            self, token_gateway, mock_uow_token, mock_uow
+    ):
         token_gateway.get_by_access_token = AsyncMock(return_value=mock_uow_token)
 
         result = await token_gateway.delete_token_by_access_token("access_token_123")
@@ -203,7 +214,9 @@ class TestTokenGateway:
         assert result is False
 
     @pytest.mark.asyncio
-    async def test_delete_token_by_refresh_token_success(self, token_gateway, mock_uow_token, mock_uow):
+    async def test_delete_token_by_refresh_token_success(
+            self, token_gateway, mock_uow_token, mock_uow
+    ):
         token_gateway.get_by_refresh_token = AsyncMock(return_value=mock_uow_token)
 
         result = await token_gateway.delete_token_by_refresh_token("refresh_token_123")

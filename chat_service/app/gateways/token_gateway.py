@@ -1,13 +1,13 @@
 # app/infrastructure/token_gateway.py
-from typing import Optional
 
-from app.gateways.interfaces import ITokenGateway
-from app.infrastructure import models
-from app.infrastructure import schemas
-from app.infrastructure.data_mappers import TokenMapper
-from app.infrastructure.uow import UnitOfWork, UoWModel
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.gateways.interfaces import ITokenGateway
+from app.infrastructure import models, schemas
+from app.infrastructure.data_mappers import TokenMapper
+from app.infrastructure.uow import UnitOfWork, UoWModel
 
 
 class TokenGateway(ITokenGateway):
@@ -32,26 +32,26 @@ class TokenGateway(ITokenGateway):
         await self.uow.commit()
         return existing_token
 
-    async def get_by_user_id(self, user_id: int) -> Optional[UoWModel]:
+    async def get_by_user_id(self, user_id: int) -> UoWModel | None:
         stmt = select(models.Token).filter(models.Token.user_id == user_id)
         result = await self.session.execute(stmt)
         token = result.scalar_one_or_none()
         return UoWModel(token, self.uow) if token else None
 
-    async def get_by_access_token(self, access_token: str) -> Optional[UoWModel]:
+    async def get_by_access_token(self, access_token: str) -> UoWModel | None:
         stmt = select(models.Token).filter(models.Token.access_token == access_token)
         result = await self.session.execute(stmt)
         token = result.scalar_one_or_none()
         return UoWModel(token, self.uow) if token else None
 
-    async def get_by_refresh_token(self, refresh_token: str) -> Optional[UoWModel]:
+    async def get_by_refresh_token(self, refresh_token: str) -> UoWModel | None:
         stmt = select(models.Token).filter(models.Token.refresh_token == refresh_token)
         result = await self.session.execute(stmt)
         token = result.scalar_one_or_none()
         return UoWModel(token, self.uow) if token else None
 
     async def invalidate_refresh_token(self, refresh_token: str) -> bool:
-        token: Optional[UoWModel] = await self.get_by_refresh_token(refresh_token)
+        token: UoWModel | None = await self.get_by_refresh_token(refresh_token)
         if token:
             # Delete the token to invalidate it
             self.uow.register_deleted(token)
@@ -60,7 +60,7 @@ class TokenGateway(ITokenGateway):
         return False
 
     async def delete_token_by_access_token(self, access_token: str) -> bool:
-        token: Optional[UoWModel] = await self.get_by_access_token(access_token)
+        token: UoWModel | None = await self.get_by_access_token(access_token)
         if token:
             self.uow.register_deleted(token)
             await self.uow.commit()
@@ -68,7 +68,7 @@ class TokenGateway(ITokenGateway):
         return False
 
     async def delete_token_by_refresh_token(self, refresh_token: str) -> bool:
-        token: Optional[UoWModel] = await self.get_by_refresh_token(refresh_token)
+        token: UoWModel | None = await self.get_by_refresh_token(refresh_token)
         if token:
             self.uow.register_deleted(token)
             await self.uow.commit()

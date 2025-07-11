@@ -2,11 +2,14 @@
 import datetime
 from datetime import timedelta
 
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
+
 from app.api.dependencies import (
-    get_security_service,
-    get_user_interactor,
-    get_token_interactor,
     get_config,
+    get_security_service,
+    get_token_interactor,
+    get_user_interactor,
     oauth2_scheme,
 )
 from app.config import AppConfig
@@ -14,8 +17,6 @@ from app.infrastructure import schemas
 from app.infrastructure.security import SecurityService
 from app.interactors.token_interactor import TokenInteractor
 from app.interactors.user_interactor import UserInteractor
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
 
 router = APIRouter()
 

@@ -1,6 +1,5 @@
 # app/domain/events.py
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel
 
@@ -33,7 +32,7 @@ class MessageUpdated(MessageEvent):
 
 
 class MessageDeleted(MessageEvent):
-    updated_at: Optional[datetime] = None
+    updated_at: datetime | None = None
 
 
 class MessageStatusUpdated(Event):
@@ -41,7 +40,7 @@ class MessageStatusUpdated(Event):
     chat_id: int
     user_id: int
     is_read: bool
-    read_at: Optional[datetime]
+    read_at: datetime | None
 
 
 class UnreadCountUpdated(Event):

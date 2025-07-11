@@ -1,5 +1,4 @@
 # app/interactors/token_interactor.py
-from typing import Optional
 
 from app.gateways.interfaces import ITokenGateway
 from app.infrastructure import schemas
@@ -9,19 +8,19 @@ class TokenInteractor:
     def __init__(self, token_gateway: ITokenGateway):
         self.token_gateway = token_gateway
 
-    async def get_token_by_user_id(self, user_id: int) -> Optional[schemas.Token]:
+    async def get_token_by_user_id(self, user_id: int) -> schemas.Token | None:
         token = await self.token_gateway.get_by_user_id(user_id)
         return schemas.Token.model_validate(token._model) if token else None
 
     async def get_token_by_access_token(
-        self, access_token: str
-    ) -> Optional[schemas.Token]:
+            self, access_token: str
+    ) -> schemas.Token | None:
         token = await self.token_gateway.get_by_access_token(access_token)
         return schemas.Token.model_validate(token._model) if token else None
 
     async def get_token_by_refresh_token(
-        self, refresh_token: str
-    ) -> Optional[schemas.Token]:
+            self, refresh_token: str
+    ) -> schemas.Token | None:
         token = await self.token_gateway.get_by_refresh_token(refresh_token)
         return schemas.Token.model_validate(token._model) if token else None
 
@@ -36,7 +35,7 @@ class TokenInteractor:
         return await self.token_gateway.invalidate_refresh_token(refresh_token)
 
     async def create_token(
-        self, token_create: schemas.TokenCreate
+            self, token_create: schemas.TokenCreate
     ) -> schemas.TokenResponse:
         token = await self.token_gateway.create_token(token_create)
         token_dict = {

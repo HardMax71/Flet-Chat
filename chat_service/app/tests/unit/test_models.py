@@ -1,5 +1,5 @@
 # app/tests/unit/test_models.py
-from app.infrastructure.models import User, Chat, Message, Token, MessageStatus
+from app.infrastructure.models import Chat, Message, MessageStatus, Token, User
 
 
 def test_user_model():
@@ -21,7 +21,9 @@ def test_message_model():
 
 
 def test_token_model():
-    token = Token(access_token="access", refresh_token="refresh", token_type="bearer", user_id=1)
+    token = Token(
+        access_token="access", refresh_token="refresh", token_type="bearer", user_id=1
+    )
     assert token.access_token == "access"
     assert token.refresh_token == "refresh"
     assert token.token_type == "bearer"
