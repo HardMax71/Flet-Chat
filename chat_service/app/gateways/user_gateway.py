@@ -59,7 +59,9 @@ class UserGateway(IUserGateway):
     ) -> UoWModel:
         user_update_data = user_update.model_dump(exclude_unset=True)
         if "password" in user_update_data:
-            hashed_password = security_service.get_password_hash(user_update_data["password"])
+            hashed_password = security_service.get_password_hash(
+                user_update_data["password"]
+            )
             user.hashed_password = hashed_password
         if "username" in user_update_data:
             user.username = user_update_data["username"]

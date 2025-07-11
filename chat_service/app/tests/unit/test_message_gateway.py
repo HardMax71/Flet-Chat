@@ -111,7 +111,7 @@ class TestMessageGateway:
 
     @pytest.mark.asyncio
     async def test_get_all_with_content_filter(
-            self, message_gateway, mock_session, mock_message
+        self, message_gateway, mock_session, mock_message
     ):
         mock_result = Mock()
         mock_result.scalars.return_value.all.return_value = [mock_message]
@@ -124,7 +124,7 @@ class TestMessageGateway:
 
     @pytest.mark.asyncio
     async def test_get_all_with_pagination(
-            self, message_gateway, mock_session, mock_message
+        self, message_gateway, mock_session, mock_message
     ):
         mock_result = Mock()
         mock_result.scalars.return_value.all.return_value = [mock_message]
@@ -137,7 +137,7 @@ class TestMessageGateway:
 
     @pytest.mark.asyncio
     async def test_create_message_success(
-            self, message_gateway, mock_session, mock_chat, mock_uow
+        self, message_gateway, mock_session, mock_chat, mock_uow
     ):
         # Mock chat lookup
         mock_chat_result = Mock()
@@ -157,7 +157,7 @@ class TestMessageGateway:
 
         # Use AsyncMock for the entire method to avoid SQLAlchemy issues
         with patch.object(
-                message_gateway, "create_message", new_callable=AsyncMock
+            message_gateway, "create_message", new_callable=AsyncMock
         ) as mock_create:
             mock_result = UoWModel(mock_reloaded_message, mock_uow)
             mock_create.return_value = mock_result
@@ -178,13 +178,13 @@ class TestMessageGateway:
         message_create = schemas.MessageCreate(content="Test message", chat_id=999)
 
         with pytest.raises(
-                ValueError, match="Chat with id 999 not found or user is not a member"
+            ValueError, match="Chat with id 999 not found or user is not a member"
         ):
             await message_gateway.create_message(message_create, user_id=1)
 
     @pytest.mark.asyncio
     async def test_update_message_success(
-            self, message_gateway, mock_session, mock_message, mock_uow
+        self, message_gateway, mock_session, mock_message, mock_uow
     ):
         mock_result = Mock()
         mock_result.scalar_one_or_none.return_value = mock_message
@@ -215,7 +215,7 @@ class TestMessageGateway:
 
     @pytest.mark.asyncio
     async def test_delete_message_success(
-            self, message_gateway, mock_session, mock_message, mock_uow
+        self, message_gateway, mock_session, mock_message, mock_uow
     ):
         mock_result = Mock()
         mock_result.scalar_one_or_none.return_value = mock_message
@@ -243,7 +243,7 @@ class TestMessageGateway:
 
     @pytest.mark.asyncio
     async def test_update_message_status_existing_status(
-            self, message_gateway, mock_session, mock_message, mock_message_status, mock_uow
+        self, message_gateway, mock_session, mock_message, mock_message_status, mock_uow
     ):
         mock_message.statuses = [mock_message_status]
         mock_result = Mock()
@@ -265,7 +265,7 @@ class TestMessageGateway:
 
     @pytest.mark.asyncio
     async def test_update_message_status_new_status(
-            self, message_gateway, mock_session, mock_message, mock_uow
+        self, message_gateway, mock_session, mock_message, mock_uow
     ):
         mock_message.statuses = []
         mock_result = Mock()
@@ -286,7 +286,7 @@ class TestMessageGateway:
 
     @pytest.mark.asyncio
     async def test_update_message_status_message_not_found(
-            self, message_gateway, mock_session
+        self, message_gateway, mock_session
     ):
         mock_result = Mock()
         mock_result.scalar_one_or_none.return_value = None
@@ -302,7 +302,7 @@ class TestMessageGateway:
 
     @pytest.mark.asyncio
     async def test_update_message_status_mark_as_unread(
-            self, message_gateway, mock_session, mock_message, mock_message_status, mock_uow
+        self, message_gateway, mock_session, mock_message, mock_message_status, mock_uow
     ):
         mock_message_status.is_read = True
         mock_message_status.read_at = datetime.now(UTC)

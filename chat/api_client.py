@@ -286,11 +286,11 @@ class ApiClient:
         if auth_required:
             current_time = datetime.now(UTC)
             if (
-                    not self.access_token
-                    or (
-                            self.token_expiry
-                            and current_time >= self.token_expiry - timedelta(minutes=5)
-                    )
+                not self.access_token
+                or (
+                    self.token_expiry
+                    and current_time >= self.token_expiry - timedelta(minutes=5)
+                )
             ) and not self._refresh_token():
                 return ApiResponse(
                     False, error="Failed to refresh token. Please log in again."
@@ -304,9 +304,9 @@ class ApiClient:
             api_response = self._handle_response(response)
 
             if (
-                    not api_response.success
-                    and api_response.status_code == 401
-                    and "Could not validate credentials" in (api_response.error or "")
+                not api_response.success
+                and api_response.status_code == 401
+                and "Could not validate credentials" in (api_response.error or "")
             ):
                 self.logger.warning(
                     "Received 401 Unauthorized. Attempting to refresh token."

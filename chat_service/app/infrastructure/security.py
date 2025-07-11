@@ -18,7 +18,7 @@ class SecurityService:
         return self.pwd_context.hash(password)
 
     def create_access_token(
-            self, data: dict, expires_delta: datetime.timedelta | None = None
+        self, data: dict, expires_delta: datetime.timedelta | None = None
     ):
         to_encode = data.copy()
         to_encode.update({"nonce": secrets.token_hex(8)})  # Add a random nonce

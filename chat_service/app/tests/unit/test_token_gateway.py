@@ -78,7 +78,7 @@ class TestTokenGateway:
 
     @pytest.mark.asyncio
     async def test_create_token_update_existing(
-            self, token_gateway, mock_uow_token, mock_uow
+        self, token_gateway, mock_uow_token, mock_uow
     ):
         token_gateway.get_by_user_id = AsyncMock(return_value=mock_uow_token)
 
@@ -124,7 +124,7 @@ class TestTokenGateway:
 
     @pytest.mark.asyncio
     async def test_get_by_access_token_found(
-            self, token_gateway, mock_session, mock_token
+        self, token_gateway, mock_session, mock_token
     ):
         mock_result = Mock()
         mock_result.scalar_one_or_none.return_value = mock_token
@@ -149,7 +149,7 @@ class TestTokenGateway:
 
     @pytest.mark.asyncio
     async def test_get_by_refresh_token_found(
-            self, token_gateway, mock_session, mock_token
+        self, token_gateway, mock_session, mock_token
     ):
         mock_result = Mock()
         mock_result.scalar_one_or_none.return_value = mock_token
@@ -174,7 +174,7 @@ class TestTokenGateway:
 
     @pytest.mark.asyncio
     async def test_invalidate_refresh_token_success(
-            self, token_gateway, mock_uow_token, mock_uow
+        self, token_gateway, mock_uow_token, mock_uow
     ):
         token_gateway.get_by_refresh_token = AsyncMock(return_value=mock_uow_token)
 
@@ -195,7 +195,7 @@ class TestTokenGateway:
 
     @pytest.mark.asyncio
     async def test_delete_token_by_access_token_success(
-            self, token_gateway, mock_uow_token, mock_uow
+        self, token_gateway, mock_uow_token, mock_uow
     ):
         token_gateway.get_by_access_token = AsyncMock(return_value=mock_uow_token)
 
@@ -215,7 +215,7 @@ class TestTokenGateway:
 
     @pytest.mark.asyncio
     async def test_delete_token_by_refresh_token_success(
-            self, token_gateway, mock_uow_token, mock_uow
+        self, token_gateway, mock_uow_token, mock_uow
     ):
         token_gateway.get_by_refresh_token = AsyncMock(return_value=mock_uow_token)
 

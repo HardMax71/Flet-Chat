@@ -198,7 +198,7 @@ async def test_add_nonexistent_member(client: AsyncClient, auth_header, test_use
 
 
 async def test_remove_chat_member(
-        client: AsyncClient, auth_header, test_user, test_user2
+    client: AsyncClient, auth_header, test_user, test_user2
 ):
     chat_response = await client.post(
         "/api/v1/chats/",
@@ -234,7 +234,7 @@ async def test_remove_nonexistent_member(client: AsyncClient, auth_header, test_
 
 
 async def test_get_chat_members(
-        client: AsyncClient, auth_header, test_user, test_user2
+    client: AsyncClient, auth_header, test_user, test_user2
 ):
     chat_response = await client.post(
         "/api/v1/chats/",
@@ -268,7 +268,7 @@ async def test_get_unread_messages_count(client: AsyncClient, auth_header, test_
 
 
 async def test_get_unread_messages_count_nonexistent_chat(
-        client: AsyncClient, auth_header
+    client: AsyncClient, auth_header
 ):
     response = await client.get("/api/v1/chats/99999/unread_count", headers=auth_header)
     assert response.status_code == 404
@@ -301,7 +301,7 @@ async def test_get_chat_members_not_found(client: AsyncClient, auth_header):
 
 
 async def test_add_chat_member_user_not_found(
-        client: AsyncClient, auth_header, test_user
+    client: AsyncClient, auth_header, test_user
 ):
     chat_response = await client.post(
         "/api/v1/chats/",
@@ -318,7 +318,7 @@ async def test_add_chat_member_user_not_found(
 
 
 async def test_add_chat_member_chat_not_found(
-        client: AsyncClient, auth_header, test_user2
+    client: AsyncClient, auth_header, test_user2
 ):
     response = await client.post(
         "/api/v1/chats/99999/members",
@@ -330,7 +330,7 @@ async def test_add_chat_member_chat_not_found(
 
 
 async def test_remove_chat_member_user_not_found(
-        client: AsyncClient, auth_header, test_user
+    client: AsyncClient, auth_header, test_user
 ):
     chat_response = await client.post(
         "/api/v1/chats/",
@@ -347,7 +347,7 @@ async def test_remove_chat_member_user_not_found(
 
 
 async def test_remove_chat_member_chat_not_found(
-        client: AsyncClient, auth_header, test_user2
+    client: AsyncClient, auth_header, test_user2
 ):
     response = await client.delete(
         f"/api/v1/chats/99999/members/{test_user2.id}", headers=auth_header
@@ -373,7 +373,7 @@ async def test_create_chat_with_invalid_members(client: AsyncClient, auth_header
 
 
 async def test_create_chat_with_duplicate_members(
-        client: AsyncClient, auth_header, test_user
+    client: AsyncClient, auth_header, test_user
 ):
     response = await client.post(
         "/api/v1/chats/",
@@ -427,7 +427,7 @@ async def test_get_members_of_nonexistent_chat(client: AsyncClient, auth_header)
 
 
 async def test_add_nonexistent_member_to_chat(
-        client: AsyncClient, auth_header, test_chat
+    client: AsyncClient, auth_header, test_chat
 ):
     response = await client.post(
         f"/api/v1/chats/{test_chat.id}/members",
@@ -439,7 +439,7 @@ async def test_add_nonexistent_member_to_chat(
 
 
 async def test_add_member_to_nonexistent_chat(
-        client: AsyncClient, auth_header, test_user2
+    client: AsyncClient, auth_header, test_user2
 ):
     response = await client.post(
         "/api/v1/chats/99999/members",
@@ -451,7 +451,7 @@ async def test_add_member_to_nonexistent_chat(
 
 
 async def test_remove_nonexistent_member_from_chat(
-        client: AsyncClient, auth_header, test_chat
+    client: AsyncClient, auth_header, test_chat
 ):
     response = await client.delete(
         f"/api/v1/chats/{test_chat.id}/members/99999", headers=auth_header
@@ -461,7 +461,7 @@ async def test_remove_nonexistent_member_from_chat(
 
 
 async def test_create_chat_and_add_message(
-        client: AsyncClient, auth_header, test_user, test_user2
+    client: AsyncClient, auth_header, test_user, test_user2
 ):
     # Create a chat
     chat_response = await client.post(
@@ -500,7 +500,7 @@ async def test_create_chat_and_add_message(
 
 
 async def test_update_message_status_and_unread_count(
-        client: AsyncClient, auth_header, test_user, test_user2
+    client: AsyncClient, auth_header, test_user, test_user2
 ):
     # Create a chat and add a message
     chat_response = await client.post(
@@ -603,7 +603,7 @@ async def test_chat_creation_edge_cases(client: AsyncClient, auth_header, test_u
 
 
 async def test_member_management_edge_cases(
-        client: AsyncClient, auth_header, test_user, test_user2
+    client: AsyncClient, auth_header, test_user, test_user2
 ):
     # Create chat
     chat_response = await client.post(
@@ -637,7 +637,7 @@ async def test_member_management_edge_cases(
 
 
 async def test_start_chat_existing_users(
-        client: AsyncClient, auth_header, test_user, test_user2
+    client: AsyncClient, auth_header, test_user, test_user2
 ):
     # Start first chat
     response1 = await client.post(

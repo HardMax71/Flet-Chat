@@ -1,7 +1,13 @@
 # app/tests/conftest.py
 
+import os
 import random
 import string
+
+os.environ.setdefault("SECRET_KEY", "test_secret_key_12345678901234567890")
+os.environ.setdefault("REFRESH_SECRET_KEY", "test_refresh_key_12345678901234567890")
+os.environ.setdefault("REDIS_HOST", "localhost")
+os.environ.setdefault("REDIS_PORT", "6379")
 
 import pytest
 from fakeredis import aioredis

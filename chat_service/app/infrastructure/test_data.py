@@ -9,12 +9,8 @@ async def init_test_data(session_factory, security_service) -> None:
     """Initialize test users for development/testing purposes."""
     async with session_factory() as session:
         # Check if test users already exist
-        test_user1 = await session.scalar(
-            select(User).where(User.username == "test")
-        )
-        test_user2 = await session.scalar(
-            select(User).where(User.username == "alice")
-        )
+        test_user1 = await session.scalar(select(User).where(User.username == "test"))
+        test_user2 = await session.scalar(select(User).where(User.username == "alice"))
 
         if not test_user1:
             # Create test user 1

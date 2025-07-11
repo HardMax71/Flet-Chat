@@ -24,7 +24,7 @@ class UserInteractor:
         return schemas.User.model_validate(user._model) if user else None
 
     async def get_users(
-            self, skip: int = 0, limit: int = 100, username: str | None = None
+        self, skip: int = 0, limit: int = 100, username: str | None = None
     ) -> list[schemas.User]:
         users: list[UoWModel] = await self.user_gateway.get_all(skip, limit, username)
         return [schemas.User.model_validate(user._model) for user in users]
@@ -36,7 +36,7 @@ class UserInteractor:
         return schemas.User.model_validate(new_user._model) if new_user else None
 
     async def update_user(
-            self, user_id: int, user_update: schemas.UserUpdate
+        self, user_id: int, user_update: schemas.UserUpdate
     ) -> schemas.User | None:
         user: UoWModel | None = await self.user_gateway.get_user(user_id)
         if not user:
@@ -51,7 +51,7 @@ class UserInteractor:
         return user is not None
 
     async def search_users(
-            self, query: str, current_user_id: int
+        self, query: str, current_user_id: int
     ) -> list[schemas.User]:
         users: list[UoWModel] = await self.user_gateway.search_users(
             query, current_user_id
@@ -59,13 +59,13 @@ class UserInteractor:
         return [schemas.User.model_validate(user._model) for user in users]
 
     async def verify_user_password(
-            self, username: str, password: str
+        self, username: str, password: str
     ) -> schemas.User | None:
         user: UoWModel | None = await self.user_gateway.get_by_username(username)
         if not user:
             return None
         if await self.user_gateway.verify_password(
-                user, password, self.security_service
+            user, password, self.security_service
         ):
             return schemas.User.model_validate(user._model)
         return None

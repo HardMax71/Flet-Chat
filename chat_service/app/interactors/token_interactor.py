@@ -13,13 +13,13 @@ class TokenInteractor:
         return schemas.Token.model_validate(token._model) if token else None
 
     async def get_token_by_access_token(
-            self, access_token: str
+        self, access_token: str
     ) -> schemas.Token | None:
         token = await self.token_gateway.get_by_access_token(access_token)
         return schemas.Token.model_validate(token._model) if token else None
 
     async def get_token_by_refresh_token(
-            self, refresh_token: str
+        self, refresh_token: str
     ) -> schemas.Token | None:
         token = await self.token_gateway.get_by_refresh_token(refresh_token)
         return schemas.Token.model_validate(token._model) if token else None
@@ -35,7 +35,7 @@ class TokenInteractor:
         return await self.token_gateway.invalidate_refresh_token(refresh_token)
 
     async def create_token(
-            self, token_create: schemas.TokenCreate
+        self, token_create: schemas.TokenCreate
     ) -> schemas.TokenResponse:
         token = await self.token_gateway.create_token(token_create)
         token_dict = {
