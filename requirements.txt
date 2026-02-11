@@ -20,7 +20,7 @@ click==8.1.7
 codecov==2.1.13
 cookiecutter==2.6.0
 coverage==7.6.10
-cryptography==44.0.1
+cryptography==46.0.5
 dependency-injector==4.42.0
 Deprecated==1.2.15
 dnspython==2.6.1
